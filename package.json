@@ -1,0 +1,39 @@
+{
+  "name": "react-native-tdlib",
+  "version": "1.0.0",
+  "description": "Telegram API for react-native",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "scripts": {
+    "prepublishOnly": "rm -rf build && tsc",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "homepage": "https://github.com/vladlenskiy/react-native-tdlib",
+  "keywords": [
+    "react-native",
+    "mapkit",
+    "yandex",
+    "yamap",
+    "polygon",
+    "polyline",
+    "marker",
+    "map",
+    "maps",
+    "react-native-maps",
+    "yandexmap",
+    "yandexmaps",
+    "geocoder"
+  ],
+  "author": "Vladlen Kaveev",
+  "license": "",
+  "dependencies": {},
+  "devDependencies": {
+    "@types/react": "*",
+    "@types/react-native": "*",
+    "typescript": "^3.8.3"
+  },
+  "peerDependencies": {
+    "react": "*",
+    "react-native": "*"
+  }
+}
