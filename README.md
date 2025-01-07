@@ -8,21 +8,6 @@
 
 `react-native-tdlib` is a React Native bridge for the [TDLib (Telegram Database Library)](https://github.com/tdlib/td) that allows developers to interact with Telegram's API seamlessly in their React Native applications.
 
----
-## 📝 TODO
-- [ ] **Move Prebuilt Library out of Repository**
-- [ ] **Complete Android Method Implementations**
-- [ ] **Improve Documentation**
-- [ ] **Make a list of methods to implement**
----
-## Features
-
-- Direct communication with TDLib for Telegram API interactions.
-- Cross-platform support for iOS and Android.
-- Easy-to-use methods for common TDLib operations, such as setting parameters, sending requests, and receiving updates.
-
----
-
 ## Installation
 
 ```bash
@@ -30,6 +15,103 @@ npm install react-native-tdlib
 # or
 yarn add react-native-tdlib
 ```
+---
+
+## Available Methods
+
+The library provides the following methods for interacting with Telegram's TDLib. These are grouped into **Base API** and **High-Level API** for easier understanding.
+
+---
+
+### High-Level API
+
+These methods simplify common tasks and abstract away low-level details.
+
+| Method                 | Description                                                |
+|------------------------|------------------------------------------------------------|
+| **startTdLib**          | Starts the TDLib service with required parameters.         |
+| **login**               | Initiates login with a phone number.                      |
+| **verifyPhoneNumber**   | Verifies a phone number using an OTP code.                |
+| **verifyPassword**      | Verifies the account password for two-factor authentication. |
+| **getAuthorizationState** | Fetches the current authorization state.               |
+| **getProfile**          | Retrieves the profile information of the logged-in user.  |
+| **logout**              | Logs out of the current session.                          |
+
+---
+
+### Base API (Not recommended)
+
+These methods offer low-level access to TDLib's functionalities.
+
+| Method                 | Description                                                |
+|------------------------|------------------------------------------------------------|
+| **td_json_client_create** | Creates a new TDLib client instance.                     |
+| **td_json_client_execute** | Synchronously executes a TDLib request.                |
+| **td_json_client_send** | Sends a TDLib request asynchronously.                     |
+| **td_json_client_receive** | Receives a TDLib response with a timeout.              |
+
+---
+
+### Example Usage
+
+#### **High-Level API Example**
+```javascript
+// Start TDLib
+await TdLib.startTdLib({
+  api_id: 123456,
+  api_hash: 'your_api_hash'
+});
+
+// Login with phone number
+await TdLib.login({
+  countrycode: '+1',
+  phoneNumber: '1234567890'
+});
+
+// Verify phone number
+await TdLib.verifyPhoneNumber('12345'); // Replace with the OTP you received
+
+// Verify password (Optional)
+await TdLib.verifyPassword('password');
+
+// Get current profile
+const profile = await TdLib.getProfile();
+console.log(profile);
+```
+
+#### **Base API Example**
+```javascript
+const tdLibParameters = {
+    '@type': 'setTdlibParameters',
+    parameters: {
+        database_directory: 'tdlib',
+        use_message_database: true,
+        use_secret_chats: true,
+        api_id: 123456, // Replace with your API ID
+        api_hash: 'your_api_hash', // Replace with your API Hash
+        system_language_code: 'en',
+        device_model: 'React Native',
+        system_version: '1.0',
+        application_version: '1.0',
+        enable_storage_optimizer: true,
+    },
+};
+
+// Send TDLib parameters
+TdLib.td_json_client_send(tdLibParameters);
+```
+---
+## Features
+- Direct communication with TDLib for Telegram API interactions.
+- Cross-platform support for iOS and Android.
+- Easy-to-use methods for common TDLib operations, such as setting parameters, sending requests, and receiving updates.
+---
+## 📝 TODO
+- [ ] **Move Prebuilt Library out of Repository**
+- [ ] **Complete Android Method Implementations**
+- [ ] **Improve Documentation**
+- [ ] **Make a list of methods to implement**
+---
 
 ## Example Project
 
