@@ -62,7 +62,6 @@ RCT_EXPORT_METHOD(td_json_client_send:(NSDictionary *)request
         NSString *requestJSON;
 
         if ([request[@"@type"] isEqualToString:@"setTdlibParameters"]) {
-            // Если запрос содержит параметры TDLib, используем handleTdLibParameters
             if (![self handleTdLibParameters:request[@"parameters"]]) {
                 reject(@"TDLIB_PARAMS_ERROR", @"Failed to set TDLib parameters", nil);
                 return;
@@ -70,7 +69,6 @@ RCT_EXPORT_METHOD(td_json_client_send:(NSDictionary *)request
             resolve(@"TDLib parameters set successfully");
             return;
         } else {
-            // Преобразуем NSDictionary в JSON строку
             NSError *error = nil;
             NSData *jsonData = [NSJSONSerialization dataWithJSONObject:request options:0 error:&error];
             if (error) {
@@ -80,13 +78,8 @@ RCT_EXPORT_METHOD(td_json_client_send:(NSDictionary *)request
             requestJSON = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
         }
 
-        // Логируем запрос
         NSLog(@"TDLib Request: %@", requestJSON);
-
-        // Отправляем JSON строку в TDLib
         td_json_client_send(_client, [requestJSON UTF8String]);
-
-        // Возвращаем успешный результат
         resolve(@"Request sent successfully");
     } @catch (NSException *exception) {
         reject(@"SEND_EXCEPTION", exception.reason, nil);
@@ -176,7 +169,7 @@ RCT_EXPORT_METHOD(getAuthorizationState:(RCTPromiseResolveBlock)resolve
 
                 NSDictionary *responseDict = [NSJSONSerialization JSONObjectWithData:[responseString dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
                 NSString *type = responseDict[@"@type"];
- 
+
                 if ([type isEqualToString:@"authorizationStateWaitPhoneNumber"] ||
                     [type isEqualToString:@"authorizationStateWaitCode"] ||
                     [type isEqualToString:@"authorizationStateReady"] ||
@@ -308,7 +301,7 @@ RCT_EXPORT_METHOD(verifyPhoneNumber:(NSString *)otp
                     resolve(@"Verification successful");
                     return;
                 }
-                
+
                 if ([type isEqualToString:@"error"]) {
                     reject(@"VERIFY_PHONE_NUMBER_ERROR", responseString, nil);
                     return;
@@ -347,7 +340,7 @@ RCT_EXPORT_METHOD(getProfile:(RCTPromiseResolveBlock)resolve
 
                 NSDictionary *responseDict = [NSJSONSerialization JSONObjectWithData:[responseString dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
                 NSString *type = responseDict[@"@type"];
- 
+
                 if ([type isEqualToString:@"user"]) {
                     resolve(responseDict);
                     return;
@@ -385,7 +378,6 @@ RCT_EXPORT_METHOD(startTdLib:(NSDictionary *)parameters
 
         td_json_client_send(_client, "{\"@type\":\"setLogVerbosityLevel\",\"new_verbosity_level\":0}");
 
-        // Устанавливаем параметры TDLib
         if (![self handleTdLibParameters:parameters]) {
             reject(@"TDLIB_PARAMS_ERROR", @"Failed to set TDLib parameters", nil);
             return;
