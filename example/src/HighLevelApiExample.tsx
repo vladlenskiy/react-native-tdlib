@@ -5,18 +5,19 @@
 import React, {useCallback, useEffect} from 'react';
 import {
   Button,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
-import TdLib from 'react-native-tdlib';
+import TdLib, {TdLibParameters} from 'react-native-tdlib';
 
 const parameters = {
   api_id: 12345678, // Your API ID
   api_hash: '12345678', // Your API Hash
-};
+} as TdLibParameters;
 
 const HighLevelApiExample = () => {
   const [phone, setPhone] = React.useState('');
@@ -28,9 +29,9 @@ const HighLevelApiExample = () => {
   useEffect(() => {
     // Initializes TDLib with the provided parameters and checks the authorization state
     TdLib.startTdLib(parameters).then(r => {
-      console.log(r);
+      console.log('StartTdLib:', r);
       TdLib.getAuthorizationState().then(r => {
-        console.log(r);
+        console.log('InitialAuthState:', r);
         if (JSON.parse(r)['@type'] === 'authorizationStateReady') {
           getProfile(); // Fetches the user's profile if authorization is ready
         }
@@ -41,30 +42,36 @@ const HighLevelApiExample = () => {
   // Sends a verification code to the provided phone number
   const sendCode = useCallback(() => {
     TdLib.login({countrycode: countryCode, phoneNumber: phone}).then(r =>
-      console.log(r),
+      console.log('SendCode:', r),
     );
   }, [countryCode, phone]);
 
   // Verifies the phone number using the entered OTP code
-  const login = useCallback(() => {
-    TdLib.verifyPhoneNumber(otp).then(r => console.log(r));
+  const verifyPhoneNumber = useCallback(() => {
+    TdLib.verifyPhoneNumber(otp).then(r =>
+      console.log('VerifyPhoneNumber:', r),
+    );
   }, [otp]);
 
   // Verifies the password if required for login
   const checkPassword = useCallback(() => {
-    TdLib.verifyPassword(password).then(r => console.log(r));
+    TdLib.verifyPassword(password).then(r => console.log('CheckPassword:', r));
   }, [password]);
 
   // Fetches the profile of the logged-in user
   const getProfile = useCallback(() => {
-    TdLib.getProfile().then(profile => {
-      console.log(profile);
+    TdLib.getProfile().then(result => {
+      console.log('User Profile:', result);
+      const profile = Platform.select({
+        ios: result,
+        android: JSON.parse(result),
+      });
       setProfile(profile);
     });
   }, []);
 
   const checkAuthState = useCallback(() => {
-    TdLib.getAuthorizationState().then(r => console.log(r));
+    TdLib.getAuthorizationState().then(r => console.log('AuthState:', r));
   }, []);
 
   return (
@@ -107,7 +114,7 @@ const HighLevelApiExample = () => {
             },
           ]}
         />
-        <Button title={'Login'} onPress={login} />
+        <Button title={'Login'} onPress={verifyPhoneNumber} />
         <View style={styles.divider} />
         <Text>3. Password (optional)</Text>
         <TextInput
@@ -127,9 +134,12 @@ const HighLevelApiExample = () => {
         {profile && (
           <>
             <Text>
-              Name: {profile.first_name} {profile.last_name}
+              Name: {profile.first_name || profile.firstName}{' '}
+              {profile.last_name || profile.lastName}
             </Text>
-            <Text>Phone Number: {profile.phone_number}</Text>
+            <Text>
+              Phone Number: {profile.phone_number || profile.phoneNumber}
+            </Text>
           </>
         )}
         <Button title={'Get Profile'} onPress={getProfile} />

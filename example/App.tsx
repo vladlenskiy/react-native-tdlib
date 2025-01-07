@@ -5,8 +5,8 @@ import HighLevelApiExample from './src/HighLevelApiExample';
 const App = () => {
   return (
     <>
-      {/*<BaseApiExample />*/}
       <HighLevelApiExample />
+      {/*<BaseApiExample />*/}
     </>
   );
 };

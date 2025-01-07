@@ -37,14 +37,17 @@ declare module "react-native-tdlib" {
    * @returns A promise that resolves when TDLib is successfully started.
    * @throws An error if starting TDLib or setting parameters fails.
    */
-  export function startTdLib(parameters: {
+
+  export interface TdLibParameters {
     api_id: number;
     api_hash: string;
     system_language_code?: string;
     device_model?: string;
     system_version?: string;
     application_version?: string;
-  }): Promise<string>;
+  }
+
+  export function startTdLib(parameters: TdLibParameters): Promise<string>;
 
   /**
    * Logs in the user using their phone number.
