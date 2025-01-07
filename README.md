@@ -1,5 +1,9 @@
 # React Native TDLib
 
+[![NPM Version](https://img.shields.io/npm/v/react-native-tdlib.svg?style=flat-square)](https://www.npmjs.com/package/react-native-tdlib)
+[![License](https://img.shields.io/npm/l/react-native-tdlib.svg?style=flat-square)](./LICENSE)
+[![npm Downloads](https://img.shields.io/npm/dm/react-native-tdlib.svg?style=flat-square)](https://www.npmjs.com/package/react-native-tdlib)
+
 ⚠️ **Note:** This library is currently under development, and contributions are welcome! If you'd like to help improve the library, feel free to submit issues or pull requests.
 
 `react-native-tdlib` is a React Native bridge for the [TDLib (Telegram Database Library)](https://github.com/tdlib/td) that allows developers to interact with Telegram's API seamlessly in their React Native applications.
