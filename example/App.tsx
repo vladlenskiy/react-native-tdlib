@@ -1,12 +1,10 @@
 import React from 'react';
-import BaseApiExample from './src/BaseApiExample';
-import HighLevelApiExample from './src/HighLevelApiExample';
+import AuthorizationExample from './src/AuthorizationExample';
 
 const App = () => {
   return (
     <>
-      <HighLevelApiExample />
-      {/*<BaseApiExample />*/}
+      <AuthorizationExample />
     </>
   );
 };

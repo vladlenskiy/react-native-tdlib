@@ -1,5 +1,5 @@
 /**
- * This examples in progress
+ * Example with authorization flow
  */
 
 import React, {useCallback, useEffect} from 'react';
@@ -19,7 +19,7 @@ const parameters = {
   api_hash: '12345678', // Your API Hash
 } as TdLibParameters;
 
-const HighLevelApiExample = () => {
+const AuthorizationExample = () => {
   const [phone, setPhone] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [otp, setOtp] = React.useState('');
@@ -168,4 +168,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default HighLevelApiExample;
+export default AuthorizationExample;
