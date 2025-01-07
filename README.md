@@ -39,7 +39,7 @@ This repository includes an example directory with a fully functional React Nati
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/your-repo/react-native-tdlib.git
+git clone https://github.com/vladlenskiy/react-native-tdlib.git
 cd react-native-tdlib/example
 ```
 2. Install dependencies:
