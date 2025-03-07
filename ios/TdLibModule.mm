@@ -111,12 +111,10 @@ RCT_EXPORT_METHOD(logout:(RCTPromiseResolveBlock)resolve
             return;
         }
 
-        // Создаем запрос на выход из аккаунта
         NSString *request = @"{\"@type\":\"logOut\"}";
         td_json_client_send(_client, [request UTF8String]);
         NSLog(@"Logout request sent: %@", request);
 
-        // Ожидаем ответа от TDLib
         while (true) {
             const char *response = td_json_client_receive(_client, 10.0);
             if (response != NULL) {

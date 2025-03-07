@@ -161,37 +161,37 @@ public class TdLibModule extends ReactContextBaseJavaModule {
         }
     }
 
-@ReactMethod
-public void getAuthorizationState(Promise promise) {
-    try {
-        if (client == null) {
-            promise.reject("CLIENT_NOT_INITIALIZED", "TDLib client is not initialized");
-            return;
-        }
-
-        client.send(new TdApi.GetAuthorizationState(), object -> {
-            if (object instanceof TdApi.AuthorizationState) {
-                try {
-                    Map<String, Object> responseMap = new HashMap<>();
-                    String originalType = object.getClass().getSimpleName();
-                    String formattedType = originalType.substring(0, 1).toLowerCase() + originalType.substring(1);
-
-                    responseMap.put("@type", formattedType);
-                    promise.resolve(new JSONObject(responseMap).toString());
-                } catch (Exception e) {
-                    promise.reject("JSON_CONVERT_ERROR", "Error converting object to JSON: " + e.getMessage());
-                }
-            } else if (object instanceof TdApi.Error) {
-                TdApi.Error error = (TdApi.Error) object;
-                promise.reject("AUTH_STATE_ERROR", error.message);
-            } else {
-                promise.reject("AUTH_STATE_UNEXPECTED_RESPONSE", "Unexpected response from TDLib.");
+    @ReactMethod
+    public void getAuthorizationState(Promise promise) {
+        try {
+            if (client == null) {
+                promise.reject("CLIENT_NOT_INITIALIZED", "TDLib client is not initialized");
+                return;
             }
-        });
-    } catch (Exception e) {
-        promise.reject("GET_AUTH_STATE_EXCEPTION", e.getMessage());
+
+            client.send(new TdApi.GetAuthorizationState(), object -> {
+                if (object instanceof TdApi.AuthorizationState) {
+                    try {
+                        Map<String, Object> responseMap = new HashMap<>();
+                        String originalType = object.getClass().getSimpleName();
+                        String formattedType = originalType.substring(0, 1).toLowerCase() + originalType.substring(1);
+
+                        responseMap.put("@type", formattedType);
+                        promise.resolve(new JSONObject(responseMap).toString());
+                    } catch (Exception e) {
+                        promise.reject("JSON_CONVERT_ERROR", "Error converting object to JSON: " + e.getMessage());
+                    }
+                } else if (object instanceof TdApi.Error) {
+                    TdApi.Error error = (TdApi.Error) object;
+                    promise.reject("AUTH_STATE_ERROR", error.message);
+                } else {
+                    promise.reject("AUTH_STATE_UNEXPECTED_RESPONSE", "Unexpected response from TDLib.");
+                }
+            });
+        } catch (Exception e) {
+            promise.reject("GET_AUTH_STATE_EXCEPTION", e.getMessage());
+        }
     }
-}
 
     @ReactMethod
     public void login(ReadableMap userDetails, Promise promise) {
@@ -234,6 +234,28 @@ public void getAuthorizationState(Promise promise) {
             });
         } catch (Exception e) {
             promise.reject("VERIFY_PHONE_EXCEPTION", e.getMessage());
+        }
+    }
+
+    @ReactMethod
+    public void verifyPassword(String password, Promise promise) {
+        try {
+            TdApi.CheckAuthenticationPassword checkPassword = new TdApi.CheckAuthenticationPassword();
+            checkPassword.password = password;
+
+            client.send(checkPassword, new Client.ResultHandler() {
+                @Override
+                public void onResult(TdApi.Object object) {
+                    if (object instanceof TdApi.Ok) {
+                        promise.resolve("Password verification successful");
+                    } else if (object instanceof TdApi.Error) {
+                        TdApi.Error error = (TdApi.Error) object;
+                        promise.reject("PASSWORD_ERROR", error.message);
+                    }
+                }
+            });
+        } catch (Exception e) {
+            promise.reject("PASSWORD_EXCEPTION", e.getMessage());
         }
     }
 
