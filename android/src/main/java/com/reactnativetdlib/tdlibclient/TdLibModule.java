@@ -104,6 +104,23 @@ public class TdLibModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
+    public void td_json_client_send_raw(String jsonString, Promise promise) {
+        try {
+            if (client == null) {
+                promise.reject("CLIENT_NOT_INITIALIZED", "TDLib client is not initialized");
+                return;
+            }
+
+            client.send(jsonString);
+
+            promise.resolve(null);
+        } catch (Exception e) {
+            promise.reject("SEND_EXCEPTION", e.getMessage());
+        }
+    }
+
+
+    @ReactMethod
     public void td_json_client_receive(Promise promise) {
         try {
             if (client == null) {
