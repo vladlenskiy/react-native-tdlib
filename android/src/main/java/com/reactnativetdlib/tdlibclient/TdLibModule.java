@@ -111,13 +111,20 @@ public class TdLibModule extends ReactContextBaseJavaModule {
                 return;
             }
 
-            client.send(jsonString);
+            Map<String, Object> requestMap = gson.fromJson(jsonString, new TypeToken<Map<String, Object>>(){}.getType());
+            TdApi.Function function = convertMapToFunction(requestMap);
 
-            promise.resolve(null);
+            client.send(function, new Client.ResultHandler() {
+                @Override
+                public void onResult(TdApi.Object object) {
+                    promise.resolve(gson.toJson(object));
+                }
+            });
         } catch (Exception e) {
             promise.reject("SEND_EXCEPTION", e.getMessage());
         }
     }
+
 
 
     @ReactMethod
