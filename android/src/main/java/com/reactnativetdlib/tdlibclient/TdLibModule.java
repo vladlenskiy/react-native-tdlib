@@ -104,30 +104,6 @@ public class TdLibModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void td_json_client_send_raw(String jsonString, Promise promise) {
-        try {
-            if (client == null) {
-                promise.reject("CLIENT_NOT_INITIALIZED", "TDLib client is not initialized");
-                return;
-            }
-
-            Map<String, Object> requestMap = gson.fromJson(jsonString, new TypeToken<Map<String, Object>>(){}.getType());
-            TdApi.Function function = convertMapToFunction(requestMap);
-
-            client.send(function, new Client.ResultHandler() {
-                @Override
-                public void onResult(TdApi.Object object) {
-                    promise.resolve(gson.toJson(object));
-                }
-            });
-        } catch (Exception e) {
-            promise.reject("SEND_EXCEPTION", e.getMessage());
-        }
-    }
-
-
-
-    @ReactMethod
     public void td_json_client_receive(Promise promise) {
         try {
             if (client == null) {
@@ -364,7 +340,56 @@ public class TdLibModule extends ReactContextBaseJavaModule {
 
     // ==================== Helpers ====================
     private TdApi.Function convertMapToFunction(Map<String, Object> requestMap) throws Exception {
-        // TODO: Implement conversion logic based on TdApi request types
-        throw new UnsupportedOperationException("Conversion not implemented");
+        String type = (String) requestMap.get("@type");
+
+        switch (type) {
+            case "getAuthorizationState":
+                return new TdApi.GetAuthorizationState();
+
+            case "setAuthenticationPhoneNumber": {
+                String phoneNumber = (String) requestMap.get("phone_number");
+                return new TdApi.SetAuthenticationPhoneNumber(phoneNumber, null);
+            }
+
+            case "checkAuthenticationCode": {
+                String code = (String) requestMap.get("code");
+                return new TdApi.CheckAuthenticationCode(code);
+            }
+
+            case "close":
+                return new TdApi.Close();
+
+            case "getChat": {
+                long chatId = ((Number) requestMap.get("chat_id")).longValue();
+                return new TdApi.GetChat(chatId);
+            }
+
+            case "getMessage": {
+                long chatIdMsg = ((Number) requestMap.get("chat_id")).longValue();
+                long messageId = ((Number) requestMap.get("message_id")).longValue();
+                return new TdApi.GetMessage(chatIdMsg, messageId);
+            }
+
+            case "getChatHistory": {
+                long chatId = ((Number) requestMap.get("chat_id")).longValue();
+                long fromMessageId = ((Number) requestMap.get("from_message_id")).longValue();
+                int offset = ((Number) requestMap.get("offset")).intValue();
+                int limit = ((Number) requestMap.get("limit")).intValue();
+                boolean onlyLocal = (Boolean) requestMap.get("only_local");
+                return new TdApi.GetChatHistory(chatId, fromMessageId, offset, limit, onlyLocal);
+            }
+
+            case "searchPublicChat":
+                String username = (String) requestMap.get("username");
+                return new TdApi.SearchPublicChat(username);
+
+
+            // more functions can go here
+
+            default:
+                throw new UnsupportedOperationException("Unsupported TDLib function: " + type);
+        }
     }
+
+
 }
