@@ -20,6 +20,9 @@ export default {
   verifyPhoneNumber: TdLibModule.verifyPhoneNumber,
   verifyPassword: TdLibModule.verifyPassword,
   getProfile: TdLibModule.getProfile,
+  getChat: TdLibModule.getChat,
+  getMessage: TdLibModule.getMessage,
+  getChatHistory: TdLibModule.getChatHistory,
   getAuthorizationState: TdLibModule.getAuthorizationState,
   logout: TdLibModule.logout,
 };
