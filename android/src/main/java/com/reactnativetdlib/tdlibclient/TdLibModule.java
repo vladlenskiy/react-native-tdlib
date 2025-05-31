@@ -8,6 +8,11 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableMap;
 
+import com.facebook.react.bridge.Arguments;
+import com.facebook.react.bridge.WritableMap;
+import com.facebook.react.bridge.WritableArray;
+import com.facebook.react.bridge.Arguments;
+
 import com.google.gson.Gson;
 
 import org.drinkless.tdlib.Client;
@@ -132,6 +137,22 @@ public class TdLibModule extends ReactContextBaseJavaModule {
             promise.reject("RECEIVE_EXCEPTION", e.getMessage());
         }
     }
+
+    // @ReactMethod
+    // public void td_json_client_receive(Promise promise) {
+    //     try {
+    //         TdApi.Object object = Client.receive(1.0); // منتظر دریافت تا 1 ثانیه
+    //         if (object != null) {
+    //             promise.resolve(gson.toJson(object));
+    //         } else {
+    //             promise.resolve(null); // دریافت نشده، اما خطا هم نیست
+    //         }
+    //     } catch (Exception e) {
+    //         promise.reject("RECEIVE_EXCEPTION", e.getMessage());
+    //     }
+    // }
+
+
 
     // ==================== High-Level API ====================
 
@@ -298,6 +319,110 @@ public class TdLibModule extends ReactContextBaseJavaModule {
         }
     }
 
+    @ReactMethod
+    public void getChat(double chatId, Promise promise) {
+        try {
+            TdApi.GetChat getChat = new TdApi.GetChat((long) chatId);
+
+            client.send(getChat, new Client.ResultHandler() {
+                @Override
+                public void onResult(TdApi.Object object) {
+                    if (object instanceof TdApi.Chat) {
+                        TdApi.Chat chat = (TdApi.Chat) object;
+
+                        WritableMap chatMap = Arguments.createMap();
+                        chatMap.putDouble("id", chat.id);
+                        chatMap.putString("title", chat.title);
+                        chatMap.putString("type", chat.type.getConstructor() + "");
+
+                        if (chat.photo != null) {
+                            chatMap.putMap("photo", convertChatPhoto(chat.photo));
+                        }
+
+                        promise.resolve(chatMap);
+                    } else if (object instanceof TdApi.Error) {
+                        TdApi.Error error = (TdApi.Error) object;
+
+                        // ساخت نقشه خطا
+                        WritableMap errorMap = Arguments.createMap();
+                        errorMap.putInt("code", error.code);
+                        errorMap.putString("message", error.message);
+
+                        // لاگ برای دیباگ
+                        Log.e("TDLIB", "Error getting chat: " + error.code + " - " + error.message);
+
+                        // ارسال خطای کامل به جاوااسکریپت
+                        promise.reject("GET_CHAT_ERROR", error.message, new Exception(errorMap.toString()));
+                    } else {
+                        Log.e("TDLIB", "Unknown response from getChat");
+                        promise.reject("GET_CHAT_UNKNOWN", "Unknown response received");
+                    }
+                }
+            });
+        } catch (Exception e) {
+            Log.e("TDLIB", "Exception in getChat: " + e.getMessage());
+            promise.reject("GET_CHAT_EXCEPTION", e.getMessage());
+        }
+    }
+
+    @ReactMethod
+    public void getMessage(double chatId, double messageId, Promise promise) {
+        try {
+            TdApi.GetMessage getMessage = new TdApi.GetMessage((long) chatId, (long) messageId);
+
+            client.send(getMessage, new Client.ResultHandler() {
+                @Override
+                public void onResult(TdApi.Object object) {
+                    if (object instanceof TdApi.Message) {
+                        TdApi.Message msg = (TdApi.Message) object;
+                        WritableMap map = convertMessage(msg);
+                        promise.resolve(map);
+                    } else if (object instanceof TdApi.Error) {
+                        TdApi.Error error = (TdApi.Error) object;
+                        promise.reject("GET_MESSAGE_ERROR", error.message);
+                    } else {
+                        promise.reject("GET_MESSAGE_UNKNOWN", "Unknown response received");
+                    }
+                }
+            });
+        } catch (Exception e) {
+            promise.reject("GET_MESSAGE_EXCEPTION", e.getMessage());
+        }
+    }
+
+    @ReactMethod
+    public void getChatHistory(double chatId, double fromMessageId, int limit, Promise promise) {
+        try {
+            TdApi.GetChatHistory request = new TdApi.GetChatHistory((long) chatId, (long) fromMessageId, 0, limit, false);
+            client.send(request, object -> {
+                if (object instanceof TdApi.Messages) {
+                    TdApi.Messages messages = (TdApi.Messages) object;
+                    WritableArray resultArray = Arguments.createArray();
+
+                    for (TdApi.Message message : messages.messages) {
+                        WritableMap messageMap = Arguments.createMap();
+                        messageMap.putDouble("id", message.id);
+                        messageMap.putDouble("chat_id", message.chatId);
+                        messageMap.putDouble("date", message.date);
+                        messageMap.putDouble("sender_id", message.senderId.getConstructor()); // اختیاری
+                        messageMap.putString("text", extractMessageText(message.content));
+                        resultArray.pushMap(messageMap);
+                    }
+
+                    promise.resolve(resultArray);
+                } else if (object instanceof TdApi.Error) {
+                    TdApi.Error error = (TdApi.Error) object;
+                    promise.reject("GET_HISTORY_ERROR", error.message);
+                } else {
+                    promise.reject("GET_HISTORY_UNKNOWN", "Unknown response from getChatHistory");
+                }
+            });
+        } catch (Exception e) {
+            promise.reject("GET_HISTORY_EXCEPTION", e.getMessage());
+        }
+    }
+
+
     // ==================== Helpers ====================
 
     private void setTdLibParameters(ReadableMap parameters, Promise promise) {
@@ -339,6 +464,11 @@ public class TdLibModule extends ReactContextBaseJavaModule {
     }
 
     // ==================== Helpers ====================
+    // private TdApi.Function convertMapToFunction(Map<String, Object> requestMap) throws Exception {
+    //     // TODO: Implement conversion logic based on TdApi request types
+    //     throw new UnsupportedOperationException("Conversion not implemented");
+    // }
+
     private TdApi.Function convertMapToFunction(Map<String, Object> requestMap) throws Exception {
         String type = (String) requestMap.get("@type");
 
@@ -391,5 +521,54 @@ public class TdLibModule extends ReactContextBaseJavaModule {
         }
     }
 
+
+    private WritableMap convertMessage(TdApi.Message msg) {
+        WritableMap map = Arguments.createMap();
+        map.putDouble("id", msg.id);
+        map.putDouble("chat_id", msg.chatId);
+        map.putDouble("date", msg.date);
+        map.putDouble("sender_id", getSenderId(msg.senderId));
+        map.putString("text", extractMessageText(msg.content));
+        return map;
+    }
+
+    // گرفتن آیدی فرستنده
+    private double getSenderId(TdApi.MessageSender sender) {
+        if (sender instanceof TdApi.MessageSenderUser) {
+            return ((TdApi.MessageSenderUser) sender).userId;
+        } else if (sender instanceof TdApi.MessageSenderChat) {
+            return ((TdApi.MessageSenderChat) sender).chatId;
+        }
+        return 0;
+    }
+    
+    // Helper function to convert TdApi.ChatPhotoInfo to WritableMap
+    private WritableMap convertChatPhoto(TdApi.ChatPhotoInfo photo) {
+        WritableMap map = Arguments.createMap();
+        if (photo != null) {
+            if (photo.small != null) {
+                map.putDouble("small_id", photo.small.id);
+                map.putString("small_path", photo.small.local.path);
+            }
+            if (photo.big != null) {
+                map.putDouble("big_id", photo.big.id);
+                map.putString("big_path", photo.big.local.path);
+            }
+        }
+        return map;
+    }
+
+    private String extractMessageText(TdApi.MessageContent content) {
+        if (content instanceof TdApi.MessageText) {
+            return ((TdApi.MessageText) content).text.text;
+        } else if (content instanceof TdApi.MessagePhoto) {
+            return "[Photo]";
+        } else if (content instanceof TdApi.MessageVideo) {
+            return "[Video]";
+        } else if (content instanceof TdApi.MessageVoiceNote) {
+            return "[Voice]";
+        }
+        return "[Non-text message]";
+    }
 
 }
