@@ -141,11 +141,11 @@ public class TdLibModule extends ReactContextBaseJavaModule {
     // @ReactMethod
     // public void td_json_client_receive(Promise promise) {
     //     try {
-    //         TdApi.Object object = Client.receive(1.0); // منتظر دریافت تا 1 ثانیه
+    //         TdApi.Object object = Client.receive(1.0); 
     //         if (object != null) {
     //             promise.resolve(gson.toJson(object));
     //         } else {
-    //             promise.resolve(null); // دریافت نشده، اما خطا هم نیست
+    //             promise.resolve(null); 
     //         }
     //     } catch (Exception e) {
     //         promise.reject("RECEIVE_EXCEPTION", e.getMessage());
@@ -343,15 +343,15 @@ public class TdLibModule extends ReactContextBaseJavaModule {
                     } else if (object instanceof TdApi.Error) {
                         TdApi.Error error = (TdApi.Error) object;
 
-                        // ساخت نقشه خطا
+                        // create error map
                         WritableMap errorMap = Arguments.createMap();
                         errorMap.putInt("code", error.code);
                         errorMap.putString("message", error.message);
 
-                        // لاگ برای دیباگ
+                        // log for debug
                         Log.e("TDLIB", "Error getting chat: " + error.code + " - " + error.message);
 
-                        // ارسال خطای کامل به جاوااسکریپت
+                        // throw error to javascript
                         promise.reject("GET_CHAT_ERROR", error.message, new Exception(errorMap.toString()));
                     } else {
                         Log.e("TDLIB", "Unknown response from getChat");
