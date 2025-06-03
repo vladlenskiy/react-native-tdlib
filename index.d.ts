@@ -13,25 +13,6 @@ declare module "react-native-tdlib" {
     application_version?: string;
   }
 
-  /**
- * Fetch chat history messages.
- */
-  export function getChatHistory(
-    chatId: number | string,
-    fromMessageId: number,
-    limit: number
-  ): Promise<
-    {
-      id: number;
-      chat_id: number;
-      date: number;
-      sender_id: number;
-      text: string;
-    }[]
-  >;
-
-
-  // پیام از نوع متنی
   export interface TdMessage {
     id: number;
     chat_id: number;
@@ -40,20 +21,35 @@ declare module "react-native-tdlib" {
     text: string;
   }
 
-  // اطلاعات چت
   export interface TdChat {
     id: string;
     title: string;
     type: string;
   }
 
-  // Base API
+  export interface TdFile {
+    id: number;
+    path: string;
+    isDownloadingCompleted: boolean;
+  }
+
+  export interface SendMessageOptions {
+    chatId: number;
+    text: string;
+    replyToMessageId?: number;
+  }
+
+  /**
+   * Base API
+   */
   export function td_json_client_create(): Promise<string>;
   export function td_json_client_send(request: object): Promise<string>;
   export function td_json_client_execute(request: object): Promise<string>;
   export function td_json_client_receive(): Promise<string>;
 
-  // High-Level API
+  /**
+   * High-Level API
+   */
   export function startTdLib(parameters: TdLibParameters): Promise<string>;
   export function login(userDetails: UserDetails): Promise<void>;
   export function verifyPhoneNumber(otp: string): Promise<void>;
@@ -62,26 +58,29 @@ declare module "react-native-tdlib" {
   export function getAuthorizationState(): Promise<any>;
   export function logout(): Promise<any>;
 
+  /**
+   * Chat & Message Methods
+   */
   export function getChat(chatId: string | number): Promise<TdChat>;
 
-  /**
-   * Gets a specific message from a chat.
-   * @param chatId Chat ID
-   * @param messageId Message ID
-   */
-  export function getMessage(chatId: number, messageId: number): Promise<TdMessage>;
+  export function getMessage(
+    chatId: number,
+    messageId: number
+  ): Promise<TdMessage>;
 
-  /**
-   * Retrieves the chat history.
-   * @param chatId ID of the chat
-   * @param fromMessageId ID to start fetching from (use 0 for latest)
-   * @param limit Number of messages to fetch
-   */
   export function getChatHistory(
     chatId: number,
     fromMessageId: number,
     limit: number
   ): Promise<TdMessage[]>;
+
+  export function sendMessage(options: SendMessageOptions): Promise<TdMessage>;
+
+  export function downloadFile(
+    fileId: number,
+    priority?: number,
+    synchronous?: boolean
+  ): Promise<TdFile>;
 
   const TdLib: {
     // Base API
@@ -98,11 +97,13 @@ declare module "react-native-tdlib" {
     getProfile: typeof getProfile;
     getAuthorizationState: typeof getAuthorizationState;
     logout: typeof logout;
-    getChat: typeof getChat;
 
-    // New Methods
+    // Message/Chat API
+    getChat: typeof getChat;
     getMessage: typeof getMessage;
     getChatHistory: typeof getChatHistory;
+    sendMessage: typeof sendMessage;
+    downloadFile: typeof downloadFile;
   };
 
   export default TdLib;
