@@ -8,6 +8,18 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableMap;
 
+import com.facebook.react.bridge.Arguments;
+import com.facebook.react.bridge.WritableMap;
+import com.facebook.react.bridge.WritableArray;
+import com.facebook.react.bridge.Arguments;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+
+
+import android.util.Base64;
+
 import com.google.gson.Gson;
 
 import org.drinkless.tdlib.Client;
@@ -132,6 +144,22 @@ public class TdLibModule extends ReactContextBaseJavaModule {
             promise.reject("RECEIVE_EXCEPTION", e.getMessage());
         }
     }
+
+    // @ReactMethod
+    // public void td_json_client_receive(Promise promise) {
+    //     try {
+    //         TdApi.Object object = Client.receive(1.0); // منتظر دریافت تا 1 ثانیه
+    //         if (object != null) {
+    //             promise.resolve(gson.toJson(object));
+    //         } else {
+    //             promise.resolve(null); // دریافت نشده، اما خطا هم نیست
+    //         }
+    //     } catch (Exception e) {
+    //         promise.reject("RECEIVE_EXCEPTION", e.getMessage());
+    //     }
+    // }
+
+
 
     // ==================== High-Level API ====================
 
@@ -298,7 +326,110 @@ public class TdLibModule extends ReactContextBaseJavaModule {
         }
     }
 
-    // ==================== Helpers ====================
+    // @ReactMethod
+    // public void getChat(double chatId, Promise promise) {
+    //     try {
+    //         TdApi.GetChat getChat = new TdApi.GetChat((long) chatId);
+
+    //         client.send(getChat, new Client.ResultHandler() {
+    //             @Override
+    //             public void onResult(TdApi.Object object) {
+    //                 if (object instanceof TdApi.Chat) {
+    //                     TdApi.Chat chat = (TdApi.Chat) object;
+
+    //                     WritableMap chatMap = Arguments.createMap();
+    //                     chatMap.putDouble("id", chat.id);
+    //                     chatMap.putString("title", chat.title);
+    //                     chatMap.putString("type", chat.type.getConstructor() + "");
+
+    //                     if (chat.photo != null) {
+    //                         chatMap.putMap("photo", convertChatPhoto(chat.photo));
+    //                     }
+
+    //                     promise.resolve(chatMap);
+    //                 } else if (object instanceof TdApi.Error) {
+    //                     TdApi.Error error = (TdApi.Error) object;
+
+    //                     // ساخت نقشه خطا
+    //                     WritableMap errorMap = Arguments.createMap();
+    //                     errorMap.putInt("code", error.code);
+    //                     errorMap.putString("message", error.message);
+
+    //                     // لاگ برای دیباگ
+    //                     Log.e("TDLIB", "Error getting chat: " + error.code + " - " + error.message);
+
+    //                     // ارسال خطای کامل به جاوااسکریپت
+    //                     promise.reject("GET_CHAT_ERROR", error.message, new Exception(errorMap.toString()));
+    //                 } else {
+    //                     Log.e("TDLIB", "Unknown response from getChat");
+    //                     promise.reject("GET_CHAT_UNKNOWN", "Unknown response received");
+    //                 }
+    //             }
+    //         });
+    //     } catch (Exception e) {
+    //         Log.e("TDLIB", "Exception in getChat: " + e.getMessage());
+    //         promise.reject("GET_CHAT_EXCEPTION", e.getMessage());
+    //     }
+    // }
+
+    // @ReactMethod
+    // public void getMessage(double chatId, double messageId, Promise promise) {
+    //     try {
+    //         TdApi.GetMessage getMessage = new TdApi.GetMessage((long) chatId, (long) messageId);
+
+    //         client.send(getMessage, new Client.ResultHandler() {
+    //             @Override
+    //             public void onResult(TdApi.Object object) {
+    //                 if (object instanceof TdApi.Message) {
+    //                     TdApi.Message msg = (TdApi.Message) object;
+    //                     WritableMap map = convertMessage(msg);
+    //                     promise.resolve(map);
+    //                 } else if (object instanceof TdApi.Error) {
+    //                     TdApi.Error error = (TdApi.Error) object;
+    //                     promise.reject("GET_MESSAGE_ERROR", error.message);
+    //                 } else {
+    //                     promise.reject("GET_MESSAGE_UNKNOWN", "Unknown response received");
+    //                 }
+    //             }
+    //         });
+    //     } catch (Exception e) {
+    //         promise.reject("GET_MESSAGE_EXCEPTION", e.getMessage());
+    //     }
+    // }
+
+
+    @ReactMethod
+    public void getChatHistory(double chatId, double fromMessageId, int limit, Promise promise) {
+        try {
+            TdApi.GetChatHistory request = new TdApi.GetChatHistory((long) chatId, (long) fromMessageId, 0, limit, false);
+            client.send(request, object -> {
+                if (object instanceof TdApi.Messages) {
+                    TdApi.Messages messages = (TdApi.Messages) object;
+                    WritableArray resultArray = Arguments.createArray();
+                    Gson gson = new Gson();
+
+                    for (TdApi.Message message : messages.messages) {
+                        WritableMap messageMap = Arguments.createMap();
+                        String json = gson.toJson(message);
+                        messageMap.putString("raw_json", json);
+                        resultArray.pushMap(messageMap);
+                    }
+
+                    promise.resolve(resultArray);
+                } else {
+                    promise.reject("NO_MESSAGES", "No messages returned");
+                }
+            });
+        } catch (Exception e) {
+            promise.reject("ERROR", e.getMessage());
+        }
+    }
+    @ReactMethod
+
+
+
+
+    // =================================== Helpers ========================================
 
     private void setTdLibParameters(ReadableMap parameters, Promise promise) {
         try {
@@ -338,9 +469,56 @@ public class TdLibModule extends ReactContextBaseJavaModule {
         }
     }
 
-    // ==================== Helpers ====================
     private TdApi.Function convertMapToFunction(Map<String, Object> requestMap) throws Exception {
-        // TODO: Implement conversion logic based on TdApi request types
-        throw new UnsupportedOperationException("Conversion not implemented");
+        String type = (String) requestMap.get("@type");
+
+        switch (type) {
+            case "getAuthorizationState":
+                return new TdApi.GetAuthorizationState();
+
+            case "setAuthenticationPhoneNumber": {
+                String phoneNumber = (String) requestMap.get("phone_number");
+                return new TdApi.SetAuthenticationPhoneNumber(phoneNumber, null);
+            }
+
+            case "checkAuthenticationCode": {
+                String code = (String) requestMap.get("code");
+                return new TdApi.CheckAuthenticationCode(code);
+            }
+
+            case "close":
+                return new TdApi.Close();
+
+            case "getChat": {
+                long chatId = ((Number) requestMap.get("chat_id")).longValue();
+                return new TdApi.GetChat(chatId);
+            }
+
+            case "getMessage": {
+                long chatIdMsg = ((Number) requestMap.get("chat_id")).longValue();
+                long messageId = ((Number) requestMap.get("message_id")).longValue();
+                return new TdApi.GetMessage(chatIdMsg, messageId);
+            }
+
+            case "getChatHistory": {
+                long chatId = ((Number) requestMap.get("chat_id")).longValue();
+                long fromMessageId = ((Number) requestMap.get("from_message_id")).longValue();
+                int offset = ((Number) requestMap.get("offset")).intValue();
+                int limit = ((Number) requestMap.get("limit")).intValue();
+                boolean onlyLocal = (Boolean) requestMap.get("only_local");
+                return new TdApi.GetChatHistory(chatId, fromMessageId, offset, limit, onlyLocal);
+            }
+
+            case "searchPublicChat":
+                String username = (String) requestMap.get("username");
+                return new TdApi.SearchPublicChat(username);
+
+
+            // more functions can go here
+
+            default:
+                throw new UnsupportedOperationException("Unsupported TDLib function: " + type);
+        }
     }
+
 }
