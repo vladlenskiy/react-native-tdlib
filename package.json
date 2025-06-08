@@ -35,6 +35,7 @@
   "license": "MIT",
   "dependencies": {},
   "devDependencies": {
+    "@release-it/bumper": "^7.0.5",
     "@release-it/conventional-changelog": "^10.0.1",
     "@types/react": "*",
     "@types/react-native": "*",

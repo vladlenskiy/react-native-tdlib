@@ -19,6 +19,12 @@
   "plugins": {
     "@release-it/conventional-changelog": {
       "preset": "conventionalcommits"
+    },
+    "@release-it/bumper": {
+      "infile": "package.json",
+      "commit": "chore(release): bump to ${version}",
+      "create": "pr",
+      "push": false
     }
   }
 }
