@@ -18,6 +18,11 @@ jobs:
       - run: yarn install --frozen-lockfile
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      
+      - name: Setup Git identity
+        run: |
+          git config --global user.email "ci@github.com"
+          git config --global user.name "GitHub Actions"
 
       - run: yarn release --ci
         env:
