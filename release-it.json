@@ -1,10 +1,12 @@
 {
-  "git": {
+"git": {
+    "requireBranch": "master",
+    "requireUpstream": true,
+    "push": false,
     "commit": true,
     "tag": true,
-    "push": true,
-    "requireCleanWorkingDir": false,
-    "requireBranch": "master"
+    "releaseCommitMessage": "chore(release): ${version}",
+    "createReleasePR": true
   },
   "npm": {
     "publish": true,
