@@ -1,6 +1,6 @@
 {
   "name": "react-native-tdlib",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "React Native wrapper for TDLib",
   "main": "index.js",
   "types": "index.d.ts",
@@ -37,10 +37,14 @@
   "devDependencies": {
     "@types/react": "*",
     "@types/react-native": "*",
+    "release-it": "^19.0.3",
     "typescript": "^3.8.3"
   },
   "peerDependencies": {
     "react": "*",
     "react-native": "*"
+  },
+  "scripts": {
+    "release": "release-it"
   }
 }
