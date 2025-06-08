@@ -17,6 +17,8 @@ jobs:
           node-version: '22'
 
       - run: yarn install --frozen-lockfile
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Setup Git identity
         run: |
