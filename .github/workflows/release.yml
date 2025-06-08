@@ -1,13 +1,14 @@
-name: Release
+name: Create Release Pull Request
 
 on:
   push:
     branches:
-      - master
+      - 'release/**'
 
 jobs:
   release:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v3
 
@@ -16,15 +17,13 @@ jobs:
           node-version: '22'
 
       - run: yarn install --frozen-lockfile
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-      
+
       - name: Setup Git identity
         run: |
           git config --global user.email "ci@github.com"
           git config --global user.name "GitHub Actions"
 
-      - run: yarn release --ci
+      - name: Create Release PR
+        run: yarn release --ci
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

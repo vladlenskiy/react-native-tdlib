@@ -1,16 +1,13 @@
 {
-"git": {
+  "git": {
     "requireBranch": "master",
     "requireUpstream": true,
     "push": false,
-    "commit": true,
-    "tag": true,
-    "releaseCommitMessage": "chore(release): ${version}",
-    "createReleasePR": true
+    "commit": false,
+    "tag": false
   },
   "npm": {
-    "publish": true,
-    "registry": "https://registry.npmjs.org"
+    "publish": false
   },
   "github": {
     "release": true,
@@ -24,7 +21,7 @@
       "infile": "package.json",
       "commit": "chore(release): bump to ${version}",
       "create": "pr",
-      "push": false
+      "push": true
     }
   }
 }
