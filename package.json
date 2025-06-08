@@ -44,5 +44,11 @@
   "peerDependencies": {
     "react": "*",
     "react-native": "*"
+  },
+  "scripts": {
+    "release": "release-it"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org"
   }
 }
