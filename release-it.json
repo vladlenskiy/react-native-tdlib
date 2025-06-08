@@ -1,6 +1,7 @@
 {
+  "increment": false,
   "git": {
-    "requireBranch": "master",
+    "requireBranch": "release/*",
     "requireUpstream": true,
     "push": false,
     "commit": false,

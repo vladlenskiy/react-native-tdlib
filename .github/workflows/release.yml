@@ -26,7 +26,7 @@ jobs:
           git config --global user.name "GitHub Actions"
 
       - name: Create Release PR
-        run: yarn release --ci
+        run: yarn release --ci --config release-it.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
