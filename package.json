@@ -35,6 +35,7 @@
   "license": "MIT",
   "dependencies": {},
   "devDependencies": {
+    "@release-it/conventional-changelog": "^10.0.1",
     "@types/react": "*",
     "@types/react-native": "*",
     "release-it": "^19.0.3",
@@ -46,5 +47,8 @@
   },
   "scripts": {
     "release": "release-it"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org"
   }
 }

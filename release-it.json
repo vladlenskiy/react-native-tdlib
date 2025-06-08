@@ -1,16 +1,22 @@
 {
-    "git": {
-      "commit": true,
-      "tag": true,
-      "push": true,
-      "requireCleanWorkingDir": true,
-      "requireBranch": "master"
-    },
-    "npm": {
-      "publish": true
-    },
-    "github": {
-      "release": true,
-      "tokenRef": "PERSONAL_ACCESS_TOKEN"
+  "git": {
+    "commit": true,
+    "tag": true,
+    "push": true,
+    "requireCleanWorkingDir": false,
+    "requireBranch": "master"
+  },
+  "npm": {
+    "publish": true,
+    "registry": "https://registry.npmjs.org"
+  },
+  "github": {
+    "release": true,
+    "tokenRef": "GITHUB_TOKEN"
+  },
+  "plugins": {
+    "@release-it/conventional-changelog": {
+      "preset": "conventionalcommits"
     }
   }
+}
