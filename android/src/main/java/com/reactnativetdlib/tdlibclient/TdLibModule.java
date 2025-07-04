@@ -8,6 +8,18 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableMap;
 
+import com.facebook.react.bridge.Arguments;
+import com.facebook.react.bridge.WritableMap;
+import com.facebook.react.bridge.WritableArray;
+import com.facebook.react.bridge.Arguments;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+
+
+import android.util.Base64;
+
 import com.google.gson.Gson;
 
 import org.drinkless.tdlib.Client;
@@ -20,14 +32,19 @@ import java.util.Map;
 import java.util.HashMap;
 import org.json.JSONObject;
 import org.json.JSONException;
+import com.facebook.react.modules.core.DeviceEventManagerModule;
+
+
 
 public class TdLibModule extends ReactContextBaseJavaModule {
     private static final String TAG = "TdLibModule";
     private Client client;
     private final Gson gson = new Gson();
 
-    public TdLibModule(ReactApplicationContext reactContext) {
-        super(reactContext);
+    private final ReactApplicationContext reactContext;
+    public TdLibModule(ReactApplicationContext context) {
+        super(context);
+        this.reactContext = context;
     }
 
     @Override
@@ -133,6 +150,22 @@ public class TdLibModule extends ReactContextBaseJavaModule {
         }
     }
 
+    // @ReactMethod
+    // public void td_json_client_receive(Promise promise) {
+    //     try {
+    //         TdApi.Object object = Client.receive(1.0); // منتظر دریافت تا 1 ثانیه
+    //         if (object != null) {
+    //             promise.resolve(gson.toJson(object));
+    //         } else {
+    //             promise.resolve(null); // دریافت نشده، اما خطا هم نیست
+    //         }
+    //     } catch (Exception e) {
+    //         promise.reject("RECEIVE_EXCEPTION", e.getMessage());
+    //     }
+    // }
+
+
+
     // ==================== High-Level API ====================
 
     @ReactMethod
@@ -143,18 +176,35 @@ public class TdLibModule extends ReactContextBaseJavaModule {
                 return;
             }
 
-            client = Client.create(
-                    new Client.ResultHandler() {
-                        @Override
-                        public void onResult(TdApi.Object object) {
-                            Log.d(TAG, "Global Update: " + object.toString());
-                        }
-                    },
-                    null,
-                    null
-            );
+            // client = Client.create(
+            //         new Client.ResultHandler() {
+            //             @Override
+            //             public void onResult(TdApi.Object object) {
+            //                 Log.d(TAG, "Global Update: " + object.toString());
+            //             }
+            //         },
+            //         null,
+            //         null
+            // );
 
-            Client.execute(new TdApi.SetLogVerbosityLevel(0));
+            client = Client.create(
+            new Client.ResultHandler() {
+                @Override
+                public void onResult(TdApi.Object object) {
+                    WritableMap map = Arguments.createMap();
+                    map.putString("raw", gson.toJson(object));
+                    getReactApplicationContext()
+                        .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+                        .emit("tdlib-update", map);
+                }
+            },
+            null,
+            null
+        );
+
+
+
+            Client.execute(new TdApi.SetLogVerbosityLevel(5));
             setTdLibParameters(parameters, promise);
         } catch (Exception e) {
             promise.reject("TDLIB_START_ERROR", e.getMessage());
@@ -298,7 +348,243 @@ public class TdLibModule extends ReactContextBaseJavaModule {
         }
     }
 
-    // ==================== Helpers ====================
+    @ReactMethod
+    public void getUserProfilePhotos(int userId, int offset, int limit, Promise promise) {
+        try {
+            TdApi.GetUserProfilePhotos request = new TdApi.GetUserProfilePhotos(userId, offset, limit);
+            client.send(request, object -> {
+                String rawJson = new Gson().toJson(object);
+
+                // فقط چاپ کن یا مستقیماً به JS بده
+                promise.resolve(rawJson);
+            });
+        } catch (Exception e) {
+            promise.reject("GET_USER_PHOTOS_EXCEPTION", e.getMessage());
+        }
+    }
+
+    @ReactMethod
+    public void getChatHistory(double chatId, double fromMessageId, int limit, Promise promise) {
+        try {
+            TdApi.GetChatHistory request = new TdApi.GetChatHistory((long) chatId, (long) fromMessageId, 0, limit, false);
+            client.send(request, object -> {
+                if (object instanceof TdApi.Messages) {
+                    TdApi.Messages messages = (TdApi.Messages) object;
+                    WritableArray resultArray = Arguments.createArray();
+                    Gson gson = new Gson();
+
+                    for (TdApi.Message message : messages.messages) {
+                        WritableMap messageMap = Arguments.createMap();
+                        String json = gson.toJson(message);
+                        messageMap.putString("raw_json", json);
+                        resultArray.pushMap(messageMap);
+                    }
+
+                    promise.resolve(resultArray);
+                } else {
+                    promise.reject("NO_MESSAGES", "No messages returned");
+                }
+            });
+        } catch (Exception e) {
+            promise.reject("ERROR", e.getMessage());
+        }
+    }
+
+    @ReactMethod
+    public void downloadFile(int fileId, Promise promise) {
+        try {
+            TdApi.DownloadFile request = new TdApi.DownloadFile(fileId, 1, 0, 0, true);
+            client.send(request, object -> {
+                Gson gson = new Gson();
+                String json = gson.toJson(object);
+                WritableMap result = Arguments.createMap();
+                result.putString("raw", json);
+                promise.resolve(result);
+            });
+        } catch (Exception e) {
+            promise.reject("DOWNLOAD_ERROR", e.getMessage());
+        }
+    }
+
+    @ReactMethod
+    public void sendMessage(double chatId, String text, Promise promise) {
+        try {
+            TdApi.InputMessageText input = new TdApi.InputMessageText(
+                new TdApi.FormattedText(text, null),
+                null, // LinkPreviewOptions
+                false // clearDraft
+            );
+
+            TdApi.MessageSendOptions sendOptions = new TdApi.MessageSendOptions(
+                false, // disableNotification
+                false, // fromBackground
+                false, // protectContent
+                false, // updateOrderOfInstalledStickerSets
+                false, // sendWithBackgroundPriority
+                null,  // schedulingState
+                0L,    // sendingId
+                0,     // sendingFlags
+                false  // showSendingAnimation
+            );
+
+            TdApi.SendMessage request = new TdApi.SendMessage(
+                (long) chatId,
+                0, // messageThreadId
+                null, // InputMessageReplyTo
+                sendOptions,
+                null, // ReplyMarkup
+                input
+            );
+
+            client.send(request, object -> {
+                Gson gson = new Gson();
+                WritableMap result = Arguments.createMap();
+                result.putString("raw", gson.toJson(object));
+                promise.resolve(result);
+            });
+        } catch (Exception e) {
+            promise.reject("SEND_ERROR", e.getMessage());
+        }
+    }
+
+
+    @ReactMethod
+    public void getMessage(double chatId, double messageId, Promise promise) {
+        try {
+            TdApi.GetMessage request = new TdApi.GetMessage((long) chatId, (long) messageId);
+            client.send(request, object -> {
+                Gson gson = new Gson();
+                WritableMap result = Arguments.createMap();
+                result.putString("raw", gson.toJson(object));
+                promise.resolve(result);
+            });
+        } catch (Exception e) {
+            promise.reject("GET_MESSAGE_ERROR", e.getMessage());
+        }
+    }
+
+    @ReactMethod
+    public void getChat(double chatId, Promise promise) {
+        try {
+            TdApi.GetChat request = new TdApi.GetChat((long) chatId);
+            client.send(request, object -> {
+                Gson gson = new Gson();
+                WritableMap result = Arguments.createMap();
+                result.putString("raw", gson.toJson(object));
+                promise.resolve(result);
+            });
+        } catch (Exception e) {
+            promise.reject("GET_CHAT_ERROR", e.getMessage());
+        }
+    }
+
+    @ReactMethod
+    public void getMessageComments(double chatId, double messageId, Promise promise) {
+        try {
+            TdApi.GetMessageThread request = new TdApi.GetMessageThread((long) chatId, (long) messageId);
+            client.send(request, object -> {
+                Gson gson = new Gson();
+                WritableMap result = Arguments.createMap();
+                result.putString("raw", gson.toJson(object));
+                promise.resolve(result);
+            });
+        } catch (Exception e) {
+            promise.reject("GET_MESSAGE_COMMENTS_ERROR", e.getMessage());
+        }
+    }
+
+    @ReactMethod
+    public void getMessageThread(double chatId, double messageId, Promise promise) {
+        try {
+            TdApi.GetMessageThread request = new TdApi.GetMessageThread((long) chatId, (long) messageId);
+            client.send(request, object -> {
+                Gson gson = new Gson();
+                WritableMap result = Arguments.createMap();
+                result.putString("raw", gson.toJson(object));
+                promise.resolve(result);
+            });
+        } catch (Exception e) {
+            promise.reject("GET_MESSAGE_THREAD_ERROR", e.getMessage());
+        }
+    }
+
+    @ReactMethod
+    public void getMessageThreadHistory(double chatId, double messageThreadId, double fromMessageId, int limit, Promise promise) {
+        try {
+            int safeLimit = Math.max(limit, 1);
+
+            TdApi.GetMessageThreadHistory request = new TdApi.GetMessageThreadHistory(
+                (long) chatId,
+                (long) messageThreadId,
+                (long) fromMessageId,
+                0,
+                safeLimit
+            );
+
+            client.send(request, object -> {
+                Gson gson = new Gson();
+                WritableMap result = Arguments.createMap();
+                result.putString("raw", gson.toJson(object));
+                promise.resolve(result);
+            });
+        } catch (Exception e) {
+            promise.reject("GET_THREAD_HISTORY_ERROR", e.getMessage());
+        }
+    }
+
+    @ReactMethod
+    public void getMessageReplies(double chatId, double messageId, int limit, Promise promise) {
+        try {
+            int safeLimit = Math.max(limit, 1);
+
+            TdApi.SearchChatMessages request = new TdApi.SearchChatMessages(
+                (long) chatId,
+                "",                                // query: خالی چون ما فقط replyها را می‌خواهیم
+                null,                              // sender: همه ارسال‌کنندگان
+                0L,                                // fromMessageId: از آخر شروع می‌کند
+                0,                                 // offset: صفر
+                safeLimit,                         // تعداد پیام‌هایی که می‌خواهیم
+                new TdApi.SearchMessagesFilterEmpty(), // چون فیلتر reply در نسخه قدیمی نیست
+                (long) messageId,                  // reply_to_message_id: فقط پیام‌هایی که به این پیام پاسخ داده‌اند
+                0L                                 // extra (اختیاری)
+            );
+
+            client.send(request, object -> {
+                Gson gson = new Gson();
+                WritableMap result = Arguments.createMap();
+                result.putString("raw", gson.toJson(object));
+                promise.resolve(result);
+            });
+        } catch (Exception e) {
+            promise.reject("GET_REPLIES_ERROR", e.getMessage());
+        }
+    }
+
+
+
+   @ReactMethod
+    public void echoToJs(ReadableMap message) {
+        WritableMap result = Arguments.createMap();
+        result.putMap("payload", message);
+        result.putString("type", "EchoFromJava");
+
+        reactContext
+            .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+            .emit("TDLibUpdate", result);
+    }
+
+    // Required to support EventEmitter in JS
+    public void addListener(String eventName) {}
+    public void removeListeners(double count) {}
+
+
+
+
+
+
+
+
+    // =================================== Helpers ========================================
 
     private void setTdLibParameters(ReadableMap parameters, Promise promise) {
         try {
@@ -338,9 +624,56 @@ public class TdLibModule extends ReactContextBaseJavaModule {
         }
     }
 
-    // ==================== Helpers ====================
     private TdApi.Function convertMapToFunction(Map<String, Object> requestMap) throws Exception {
-        // TODO: Implement conversion logic based on TdApi request types
-        throw new UnsupportedOperationException("Conversion not implemented");
+        String type = (String) requestMap.get("@type");
+
+        switch (type) {
+            case "getAuthorizationState":
+                return new TdApi.GetAuthorizationState();
+
+            case "setAuthenticationPhoneNumber": {
+                String phoneNumber = (String) requestMap.get("phone_number");
+                return new TdApi.SetAuthenticationPhoneNumber(phoneNumber, null);
+            }
+
+            case "checkAuthenticationCode": {
+                String code = (String) requestMap.get("code");
+                return new TdApi.CheckAuthenticationCode(code);
+            }
+
+            case "close":
+                return new TdApi.Close();
+
+            case "getChat": {
+                long chatId = ((Number) requestMap.get("chat_id")).longValue();
+                return new TdApi.GetChat(chatId);
+            }
+
+            case "getMessage": {
+                long chatIdMsg = ((Number) requestMap.get("chat_id")).longValue();
+                long messageId = ((Number) requestMap.get("message_id")).longValue();
+                return new TdApi.GetMessage(chatIdMsg, messageId);
+            }
+
+            case "getChatHistory": {
+                long chatId = ((Number) requestMap.get("chat_id")).longValue();
+                long fromMessageId = ((Number) requestMap.get("from_message_id")).longValue();
+                int offset = ((Number) requestMap.get("offset")).intValue();
+                int limit = ((Number) requestMap.get("limit")).intValue();
+                boolean onlyLocal = (Boolean) requestMap.get("only_local");
+                return new TdApi.GetChatHistory(chatId, fromMessageId, offset, limit, onlyLocal);
+            }
+
+            case "searchPublicChat":
+                String username = (String) requestMap.get("username");
+                return new TdApi.SearchPublicChat(username);
+
+
+            // more functions can go here
+
+            default:
+                throw new UnsupportedOperationException("Unsupported TDLib function: " + type);
+        }
     }
+
 }
