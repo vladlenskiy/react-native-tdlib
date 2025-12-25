@@ -81,15 +81,12 @@ declare module "react-native-tdlib" {
    */
   export function getChat(chatId: string | number): Promise<TdChat>;
   export function getMessage(chatId: number, messageId: number): Promise<TdMessage>;
-  export function getChatHistory(chatId: number, fromMessageId: number, limit: number): Promise<TdMessage[]>;
+  export function getChatHistory(chatId: number, fromMessageId: number, limit: number, offest: number): Promise<TdMessage[]>;
   export function sendMessage(options: SendMessageOptions): Promise<TdMessage>;
   export function downloadFile(fileId: number, priority?: number, synchronous?: boolean): Promise<TdFile>;
-  export function getMessageComments(chatId: number, messageId: number): Promise<TdMessageThread>;
-  export function getMessageThreadHistory(chatId: number, messageThreadId: number, fromMessageId: number, limit: number): Promise<TdMessageThreadHistory>;
+  export function getMessageThreadHistory(chatId: number, messageThreadId: number, fromMessageId: number,offest: number, limit: number): Promise<TdMessageThreadHistory>;
   export function getMessageThread(chatId: number, messageThreadId: number): Promise<any>;
-
-  // این متد جدید:
-  export function getMessageReplies(chatId: number, messageId: number, limit: number): Promise<GetMessageRepliesResult>;
+  export function cancelDownloadFile(fileId: number, onlyIfPending: boolean): Promise<any>;
 
   const TdLib: {
     td_json_client_create: typeof td_json_client_create;
@@ -104,20 +101,43 @@ declare module "react-native-tdlib" {
     getProfile: typeof getProfile;
     getAuthorizationState: typeof getAuthorizationState;
     logout: typeof logout;
+    cancelDownloadFile: typeof cancelDownloadFile;
 
     getChat: typeof getChat;
     getMessage: typeof getMessage;
     getChatHistory: typeof getChatHistory;
     sendMessage: typeof sendMessage;
     downloadFile: typeof downloadFile;
-    getMessageComments: typeof getMessageComments;
     getMessageThreadHistory: typeof getMessageThreadHistory;
-    getMessageReplies: typeof getMessageReplies;
     getMessageThread: typeof getMessageThread;
+    cancelDownloadFile: typeof cancelDownloadFile;
+    searchPublicChat: any;
+    getMessagesCompat: any;
+    joinChat: any;
+    leaveChat: any;
+    getChatMember: any;
+    getSupergroup: any;
+    addMessageReaction: any;
+    getChatMessagePosition: any;
+    removeMessageReaction: any;
+    openChat:any;
+    closeChat:any;
+    createPrivateChat: any;
+    addComment: any;
+    getUsersCompat: any;
     getUserProfilePhotos: any;
+    getUserProfile: any;
+    getAddedReactions:any;
+    viewMessages: any;
     echoToJs: any;
     addListener:any;
-    removeListeners:any
+    removeListeners:any;
+    getFile:any;
+    downloadFileByRemoteId:any;
+    cancelDownloadByRemoteId:any;
+    deleteComment:any;
+    getUserFull:any;
+    destroy: any;
   };
 
   export default TdLib;
