@@ -22,12 +22,25 @@ const ChatListExample = () => {
   const [chats, setChats] = useState<any[]>([]);
   const [tdlibVersion, setTdlibVersion] = useState<string>('');
   const [updates, setUpdates] = useState<string[]>([]);
+  const [status, setStatus] = useState<string>('');
 
   // Subscribe to TDLib update events
   useEffect(() => {
     const subscription = eventEmitter.addListener('tdlib-update', event => {
       setUpdates(prev => [`[${event.type}]`, ...prev.slice(0, 19)]);
     });
+
+    // Check if TDLib is ready
+    TdLib.getAuthorizationState()
+      .then(r => {
+        const state = JSON.parse(r)['@type'];
+        if (state === 'authorizationStateReady') {
+          setStatus('Authorized');
+        } else {
+          setStatus(`Not ready: ${state}. Go to Auth tab first.`);
+        }
+      })
+      .catch(() => setStatus('TDLib not initialized. Go to Auth tab first.'));
 
     return () => subscription.remove();
   }, []);
@@ -78,6 +91,16 @@ const ChatListExample = () => {
       <View style={styles.contentContainer}>
         <Text style={styles.title}>Chat List & Options</Text>
 
+        {status ? (
+          <Text
+            style={[
+              styles.status,
+              {color: status === 'Authorized' ? 'green' : 'red'},
+            ]}>
+            {status}
+          </Text>
+        ) : null}
+
         <Text style={styles.section}>TDLib Options</Text>
         <Button title="Get TDLib Version" onPress={fetchVersion} />
         {tdlibVersion ? (
@@ -121,6 +144,7 @@ const styles = StyleSheet.create({
   container: {flex: 1, backgroundColor: 'white'},
   contentContainer: {paddingTop: 20, paddingHorizontal: 8, paddingBottom: 40},
   title: {fontSize: 18, alignSelf: 'center', marginBottom: 10},
+  status: {fontSize: 13, fontWeight: '600', textAlign: 'center', marginBottom: 8},
   section: {fontSize: 14, fontWeight: 'bold', marginTop: 10, marginBottom: 6},
   info: {fontSize: 12, color: 'gray', marginVertical: 4},
   divider: {
