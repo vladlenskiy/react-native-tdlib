@@ -216,13 +216,15 @@ RCT_EXPORT_METHOD(td_json_client_send:(NSDictionary *)request
             return;
         }
 
+        NSDictionary *actualRequest = request;
+
         // Handle legacy setTdlibParameters format with nested "parameters" key
         if ([request[@"@type"] isEqualToString:@"setTdlibParameters"] && request[@"parameters"]) {
             NSDictionary *params = request[@"parameters"];
             NSString *dbPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES)[0]
                                 stringByAppendingPathComponent:@"tdlib"];
 
-            NSDictionary *flatRequest = @{
+            actualRequest = @{
                 @"@type": @"setTdlibParameters",
                 @"database_directory": dbPath,
                 @"use_message_database": @YES,
@@ -236,11 +238,20 @@ RCT_EXPORT_METHOD(td_json_client_send:(NSDictionary *)request
                 @"enable_storage_optimizer": @YES,
                 @"use_file_database": @YES
             };
-            [self sendTdLibRequest:flatRequest resolve:resolve reject:reject];
+        }
+
+        // Fire-and-forget: matches TDLib C API semantics.
+        // Caller retrieves response via td_json_client_receive.
+        NSError *error = nil;
+        NSData *jsonData = [NSJSONSerialization dataWithJSONObject:actualRequest options:0 error:&error];
+        if (error) {
+            reject(@"JSON_SERIALIZATION_ERROR", error.localizedDescription, nil);
             return;
         }
 
-        [self sendTdLibRequest:request resolve:resolve reject:reject];
+        NSString *jsonString = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
+        td_json_client_send(_client, [jsonString UTF8String]);
+        resolve(@"Request sent successfully");
     } @catch (NSException *exception) {
         reject(@"SEND_EXCEPTION", exception.reason, nil);
     }
@@ -957,7 +968,11 @@ RCT_EXPORT_METHOD(cancelDownloadByRemoteId:(NSString *)remoteFileId
                 });
             } reject:reject];
         } else {
-            reject(@"NO_TD_FILE_ID", @"GetRemoteFile returned file with id=0; cannot cancel", nil);
+            resolve(@{
+                @"raw": result ?: @"",
+                @"error": @"NO_TD_FILE_ID",
+                @"message": @"GetRemoteFile returned file with id=0; cannot cancel by tdFileId."
+            });
         }
     } reject:reject];
 }

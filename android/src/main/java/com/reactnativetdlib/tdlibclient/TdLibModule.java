@@ -723,8 +723,16 @@ public void searchChats(String query, int limit, Promise promise) {
                         });
                     }
                     try {
-                        latch.await(5, TimeUnit.SECONDS);
-                    } catch (InterruptedException ignored) {}
+                        boolean completed = latch.await(10, TimeUnit.SECONDS);
+                        if (!completed) {
+                            promise.reject("SEARCHCHATS_TIMEOUT",
+                                "Timed out waiting for chat details (" + latch.getCount() + " remaining)");
+                            return;
+                        }
+                    } catch (InterruptedException ignored) {
+                        promise.reject("SEARCHCHATS_INTERRUPTED", "Interrupted while fetching chat details");
+                        return;
+                    }
                     StringBuilder sb = new StringBuilder("[");
                     boolean first = true;
                     for (String r : out) {
@@ -1449,7 +1457,12 @@ public void addComment(
 
                     new Thread(() -> {
                         try {
-                            latch.await(5, TimeUnit.SECONDS);
+                            boolean completed = latch.await(10, TimeUnit.SECONDS);
+                            if (!completed) {
+                                promise.reject("GET_CHATS_TIMEOUT",
+                                    "Timed out waiting for chat details (" + latch.getCount() + " remaining)");
+                                return;
+                            }
                             StringBuilder sb = new StringBuilder("[");
                             boolean first = true;
                             for (String r : results) {
