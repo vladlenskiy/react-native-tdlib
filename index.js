@@ -14,45 +14,69 @@ export default {
   td_json_client_execute: TdLibModule.td_json_client_execute,
   td_json_client_send: TdLibModule.td_json_client_send,
   td_json_client_receive: TdLibModule.td_json_client_receive,
-  // High-Level API
+
+  // Auth
   startTdLib: TdLibModule.startTdLib,
   login: TdLibModule.login,
   verifyPhoneNumber: TdLibModule.verifyPhoneNumber,
   verifyPassword: TdLibModule.verifyPassword,
   getProfile: TdLibModule.getProfile,
-  getChat: TdLibModule.getChat,
-  getMessage: TdLibModule.getMessage,
-  getChatHistory: TdLibModule.getChatHistory,
-  downloadFile: TdLibModule.downloadFile,
-  cancelDownloadFile: TdLibModule.cancelDownloadFile,
-  sendMessage: TdLibModule.sendMessage,
-  getMessageThreadHistory: TdLibModule.getMessageThreadHistory,
-  getMessageThread: TdLibModule.getMessageThread,
-  getUserProfilePhotos: TdLibModule.getUserProfilePhotos,
-  getSupergroup: TdLibModule.getSupergroup,
-  getUsersCompat: TdLibModule.getUsersCompat,
-  searchPublicChat: TdLibModule.searchPublicChat,
-  getMessagesCompat: TdLibModule.getMessagesCompat,
-  openChat: TdLibModule.openChat,
-  closeChat: TdLibModule.closeChat,
-  createPrivateChat: TdLibModule.createPrivateChat,
-  addComment: TdLibModule.addComment,
-  getChatMember: TdLibModule.getChatMember,
-  leaveChat: TdLibModule.leaveChat,
-  joinChat: TdLibModule.joinChat,
-  getUserProfile: TdLibModule.getUserProfile,
-  getChatMessagePosition: TdLibModule.getChatMessagePosition,
-  removeMessageReaction: TdLibModule.removeMessageReaction,
-  addMessageReaction: TdLibModule.addMessageReaction,
-  getAddedReactions: TdLibModule.getAddedReactions,
-  viewMessages: TdLibModule.viewMessages,
-  echoToJs: TdLibModule.echoToJs,
   getAuthorizationState: TdLibModule.getAuthorizationState,
   logout: TdLibModule.logout,
-  getFile: TdLibModule.getFile,
-  downloadFileByRemoteId: TdLibModule.downloadFileByRemoteId,
-  cancelDownloadByRemoteId: TdLibModule.cancelDownloadByRemoteId,
-  deleteComment: TdLibModule.deleteComment,
-  getUserFull: TdLibModule.getUserFull,
   destroy: TdLibModule.destroy,
+
+  // Chat Operations
+  getChat: TdLibModule.getChat,
+  openChat: TdLibModule.openChat,
+  closeChat: TdLibModule.closeChat,
+  searchPublicChat: TdLibModule.searchPublicChat,
+  searchChats: TdLibModule.searchChats,
+  joinChat: TdLibModule.joinChat,
+  leaveChat: TdLibModule.leaveChat,
+  createPrivateChat: TdLibModule.createPrivateChat,
+  getChatMember: TdLibModule.getChatMember,
+  getSupergroup: TdLibModule.getSupergroup,
+  loadChats: TdLibModule.loadChats,
+  getChats: TdLibModule.getChats,
+
+  // Message Operations
+  getMessage: TdLibModule.getMessage,
+  getChatHistory: TdLibModule.getChatHistory,
+  sendMessage: TdLibModule.sendMessage,
+  getMessagesCompat: TdLibModule.getMessagesCompat,
+  viewMessages: TdLibModule.viewMessages,
+  getChatMessagePosition: TdLibModule.getChatMessagePosition,
+  getMessageThread: TdLibModule.getMessageThread,
+  getMessageThreadHistory: TdLibModule.getMessageThreadHistory,
+
+  // Comments
+  addComment: TdLibModule.addComment,
+  deleteComment: TdLibModule.deleteComment,
+
+  // Reactions
+  addMessageReaction: TdLibModule.addMessageReaction,
+  removeMessageReaction: TdLibModule.removeMessageReaction,
+  getAddedReactions: TdLibModule.getAddedReactions,
+
+  // User Operations
+  getUserProfile: TdLibModule.getUserProfile,
+  getUserFull: TdLibModule.getUserFull,
+  getUserProfilePhotos: TdLibModule.getUserProfilePhotos,
+  getUsersCompat: TdLibModule.getUsersCompat,
+
+  // File Operations
+  downloadFile: TdLibModule.downloadFile,
+  downloadFileByRemoteId: TdLibModule.downloadFileByRemoteId,
+  cancelDownloadFile: TdLibModule.cancelDownloadFile,
+  cancelDownloadByRemoteId: TdLibModule.cancelDownloadByRemoteId,
+  getFile: TdLibModule.getFile,
+
+  // Options
+  getOption: TdLibModule.getOption,
+  setOption: TdLibModule.setOption,
+
+  // Events & Utilities
+  echoToJs: TdLibModule.echoToJs,
+  addListener: TdLibModule.addListener,
+  removeListeners: TdLibModule.removeListeners,
 };

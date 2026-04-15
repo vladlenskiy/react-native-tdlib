@@ -5,9 +5,152 @@
 
 @implementation TdLibModule {
     void *_client;
+    BOOL _hasListeners;
+    BOOL _receiveLoopRunning;
+    NSMutableDictionary<NSString *, RCTPromiseResolveBlock> *_pendingResolvers;
+    NSMutableDictionary<NSString *, RCTPromiseRejectBlock> *_pendingRejectors;
+    NSLock *_promiseLock;
+    int _nextRequestId;
 }
 
 RCT_EXPORT_MODULE();
+
+- (instancetype)init {
+    self = [super init];
+    if (self) {
+        _pendingResolvers = [NSMutableDictionary new];
+        _pendingRejectors = [NSMutableDictionary new];
+        _promiseLock = [NSLock new];
+        _nextRequestId = 1;
+    }
+    return self;
+}
+
++ (BOOL)requiresMainQueueSetup {
+    return NO;
+}
+
+// ==================== Event Emitter ====================
+
+- (NSArray<NSString *> *)supportedEvents {
+    return @[@"tdlib-update"];
+}
+
+- (void)startObserving {
+    _hasListeners = YES;
+}
+
+- (void)stopObserving {
+    _hasListeners = NO;
+}
+
+RCT_EXPORT_METHOD(addListener:(NSString *)eventName) {
+    // Required for RN event emitter
+}
+
+RCT_EXPORT_METHOD(removeListeners:(double)count) {
+    // Required for RN event emitter
+}
+
+// ==================== Receive Loop ====================
+
+- (void)startReceiveLoop {
+    if (_receiveLoopRunning) return;
+    _receiveLoopRunning = YES;
+
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        while (self->_receiveLoopRunning && self->_client != NULL) {
+            const char *response = td_json_client_receive(self->_client, 1.0);
+            if (response == NULL) continue;
+
+            NSString *responseString = [NSString stringWithUTF8String:response];
+            NSData *data = [responseString dataUsingEncoding:NSUTF8StringEncoding];
+            NSDictionary *responseDict = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+            if (!responseDict) continue;
+
+            NSString *extra = responseDict[@"@extra"];
+            NSString *type = responseDict[@"@type"] ?: @"unknown";
+
+            // Dispatch to pending promise if @extra is present
+            if (extra) {
+                [self->_promiseLock lock];
+                RCTPromiseResolveBlock resolve = self->_pendingResolvers[extra];
+                RCTPromiseRejectBlock reject = self->_pendingRejectors[extra];
+                [self->_pendingResolvers removeObjectForKey:extra];
+                [self->_pendingRejectors removeObjectForKey:extra];
+                [self->_promiseLock unlock];
+
+                if (resolve) {
+                    if ([type isEqualToString:@"error"]) {
+                        NSString *errorMsg = responseDict[@"message"] ?: @"Unknown TDLib error";
+                        NSString *errorCode = [NSString stringWithFormat:@"%@", responseDict[@"code"] ?: @"0"];
+                        if (reject) {
+                            reject(errorCode, errorMsg, nil);
+                        }
+                    } else {
+                        resolve(responseString);
+                    }
+                }
+                continue;
+            }
+
+            // Emit update events
+            if ([type hasPrefix:@"update"] && self->_hasListeners) {
+                NSDictionary *event = @{
+                    @"type": type,
+                    @"raw": [NSString stringWithFormat:@"{\"type\":\"%@\",\"data\":%@}", type, responseString]
+                };
+                [self sendEventWithName:@"tdlib-update" body:event];
+            }
+        }
+    });
+}
+
+- (void)stopReceiveLoop {
+    _receiveLoopRunning = NO;
+}
+
+// ==================== Request Helpers ====================
+
+- (NSString *)nextRequestId {
+    [_promiseLock lock];
+    NSString *reqId = [NSString stringWithFormat:@"rn_tdlib_%d", _nextRequestId++];
+    [_promiseLock unlock];
+    return reqId;
+}
+
+- (void)sendTdLibRequest:(NSDictionary *)request
+                 resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject {
+    if (_client == NULL) {
+        reject(@"CLIENT_NOT_INITIALIZED", @"TDLib client is not initialized", nil);
+        return;
+    }
+
+    NSString *reqId = [self nextRequestId];
+
+    [_promiseLock lock];
+    _pendingResolvers[reqId] = resolve;
+    _pendingRejectors[reqId] = reject;
+    [_promiseLock unlock];
+
+    NSMutableDictionary *requestWithExtra = [request mutableCopy];
+    requestWithExtra[@"@extra"] = reqId;
+
+    NSError *error = nil;
+    NSData *jsonData = [NSJSONSerialization dataWithJSONObject:requestWithExtra options:0 error:&error];
+    if (error) {
+        [_promiseLock lock];
+        [_pendingResolvers removeObjectForKey:reqId];
+        [_pendingRejectors removeObjectForKey:reqId];
+        [_promiseLock unlock];
+        reject(@"JSON_ERROR", error.localizedDescription, nil);
+        return;
+    }
+
+    NSString *jsonString = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
+    td_json_client_send(_client, [jsonString UTF8String]);
+}
 
 // ==================== Base API Methods ====================
 
@@ -40,8 +183,7 @@ RCT_EXPORT_METHOD(td_json_client_execute:(NSDictionary *)request
         const char *response = td_json_client_execute(_client, [requestString UTF8String]);
 
         if (response != NULL) {
-            NSString *responseString = [NSString stringWithUTF8String:response];
-            resolve(responseString);
+            resolve([NSString stringWithUTF8String:response]);
         } else {
             reject(@"EXECUTE_ERROR", @"No response from TDLib", nil);
         }
@@ -59,28 +201,7 @@ RCT_EXPORT_METHOD(td_json_client_send:(NSDictionary *)request
             return;
         }
 
-        NSString *requestJSON;
-
-        if ([request[@"@type"] isEqualToString:@"setTdlibParameters"]) {
-            if (![self handleTdLibParameters:request[@"parameters"]]) {
-                reject(@"TDLIB_PARAMS_ERROR", @"Failed to set TDLib parameters", nil);
-                return;
-            }
-            resolve(@"TDLib parameters set successfully");
-            return;
-        } else {
-            NSError *error = nil;
-            NSData *jsonData = [NSJSONSerialization dataWithJSONObject:request options:0 error:&error];
-            if (error) {
-                reject(@"JSON_SERIALIZATION_ERROR", error.localizedDescription, nil);
-                return;
-            }
-            requestJSON = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
-        }
-
-        NSLog(@"TDLib Request: %@", requestJSON);
-        td_json_client_send(_client, [requestJSON UTF8String]);
-        resolve(@"Request sent successfully");
+        [self sendTdLibRequest:request resolve:resolve reject:reject];
     } @catch (NSException *exception) {
         reject(@"SEND_EXCEPTION", exception.reason, nil);
     }
@@ -92,276 +213,17 @@ RCT_EXPORT_METHOD(td_json_client_receive:(RCTPromiseResolveBlock)resolve rejecte
         return;
     }
 
-    const char *response = td_json_client_receive(_client, 10.0);
-    if (response) {
-        NSString *responseString = [NSString stringWithUTF8String:response];
-        resolve(responseString);
-    } else {
-        reject(@"RECEIVE_ERROR", @"No response from TDLib", nil);
-    }
-}
-
-// ==================== High-Level API Methods ====================
-
-RCT_EXPORT_METHOD(logout:(RCTPromiseResolveBlock)resolve
-                  rejecter:(RCTPromiseRejectBlock)reject) {
-    @try {
-        if (_client == NULL) {
-            reject(@"TDLIB_NOT_STARTED", @"TDLib client is not initialized. Call startTdLibService first.", nil);
-            return;
-        }
-
-        NSString *request = @"{\"@type\":\"logOut\"}";
-        td_json_client_send(_client, [request UTF8String]);
-        NSLog(@"Logout request sent: %@", request);
-
-        while (true) {
-            const char *response = td_json_client_receive(_client, 10.0);
-            if (response != NULL) {
-                NSString *responseString = [NSString stringWithUTF8String:response];
-                NSLog(@"Logout response received: %@", responseString);
-
-                NSDictionary *responseDict = [NSJSONSerialization JSONObjectWithData:[responseString dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
-                NSString *type = responseDict[@"@type"];
-
-                if ([type isEqualToString:@"ok"]) {
-                    resolve(@"Logout successful");
-                    return;
-                }
-
-                if ([type isEqualToString:@"error"]) {
-                    reject(@"LOGOUT_ERROR", responseString, nil);
-                    return;
-                }
-
-                if ([type containsString:@"update"]) {
-                    NSLog(@"Ignoring update: %@", type);
-                    continue;
-                }
-            } else {
-                reject(@"NO_RESPONSE", @"No response from TDLib during logout", nil);
-                return;
-            }
-        }
-    } @catch (NSException *exception) {
-        reject(@"LOGOUT_EXCEPTION", exception.reason, nil);
-    }
-}
-
-RCT_EXPORT_METHOD(getAuthorizationState:(RCTPromiseResolveBlock)resolve
-                              rejecter:(RCTPromiseRejectBlock)reject) {
-    @try {
-        if (_client == NULL) {
-            reject(@"TDLIB_NOT_STARTED", @"TDLib client is not initialized. Call startTdLibService first.", nil);
-            return;
-        }
-
-        NSString *request = @"{\"@type\":\"getAuthorizationState\"}";
-        td_json_client_send(_client, [request UTF8String]);
-
-        while (true) {
-            const char *response = td_json_client_receive(_client, 10.0);
-            if (response != NULL) {
-                NSString *responseString = [NSString stringWithUTF8String:response];
-                NSLog(@"TDLib response: %@", responseString);
-
-                NSDictionary *responseDict = [NSJSONSerialization JSONObjectWithData:[responseString dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
-                NSString *type = responseDict[@"@type"];
-
-                if ([type isEqualToString:@"authorizationStateWaitPhoneNumber"] ||
-                    [type isEqualToString:@"authorizationStateWaitCode"] ||
-                    [type isEqualToString:@"authorizationStateReady"] ||
-                    [type isEqualToString:@"authorizationStateWaitOtherDeviceConfirmation"] ||
-                    [type isEqualToString:@"authorizationStateClosed"]) {
-                    resolve(responseString);
-                    return;
-                }
-
-                if ([type containsString:@"update"]) {
-                    NSLog(@"Ignoring update: %@", type);
-                    continue;
-                }
-            } else {
-                reject(@"NO_RESPONSE", @"No response from TDLib", nil);
-                return;
-            }
-        }
-    } @catch (NSException *exception) {
-        reject(@"GET_AUTH_STATE_EXCEPTION", exception.reason, nil);
-    }
-}
-
-RCT_EXPORT_METHOD(verifyPassword:(NSString *)password
-                  promise:(RCTPromiseResolveBlock)resolve
-                  rejecter:(RCTPromiseRejectBlock)reject) {
-    @try {
-        if (_client == NULL) {
-            reject(@"TDLIB_NOT_STARTED", @"TDLib client is not initialized. Call startTdLibService first.", nil);
-            return;
-        }
-
-        NSString *request = [NSString stringWithFormat:@"{\"@type\":\"checkAuthenticationPassword\",\"password\":\"%@\"}", password];
-        td_json_client_send(_client, [request UTF8String]);
-
-        const char *response = td_json_client_receive(_client, 10.0);
-        if (response != NULL) {
-            NSString *responseString = [NSString stringWithUTF8String:response];
-            if ([responseString containsString:@"\"@type\":\"error\""]) {
-                reject(@"PASSWORD_ERROR", responseString, nil);
-                return;
-            }
-        }
-
-        resolve(@"Password verification successful");
-    } @catch (NSException *exception) {
-        reject(@"PASSWORD_EXCEPTION", exception.reason, nil);
-    }
-}
-
-RCT_EXPORT_METHOD(login:(NSDictionary *)userDetails
-                  promise:(RCTPromiseResolveBlock)resolve
-                  rejecter:(RCTPromiseRejectBlock)reject) {
-    @try {
-        if (_client == NULL) {
-            reject(@"TDLIB_NOT_STARTED", @"TDLib client is not initialized. Call startTdLibService first.", nil);
-            return;
-        }
-
-        NSString *countryCode = userDetails[@"countrycode"];
-        NSString *phoneNumber = userDetails[@"phoneNumber"];
-        if (!countryCode || !phoneNumber) {
-            reject(@"INVALID_INPUT", @"Both countrycode and phoneNumber must be provided", nil);
-            return;
-        }
-
-        NSString *fullPhoneNumber = [NSString stringWithFormat:@"%@%@", countryCode, phoneNumber];
-        NSLog(@"Full phone number: %@", fullPhoneNumber);
-
-        NSString *request = [NSString stringWithFormat:
-                             @"{"
-                             "\"@type\":\"setAuthenticationPhoneNumber\","
-                             "\"phone_number\":\"%@\","
-                             "\"settings\":{"
-                             "\"@type\":\"phoneNumberAuthenticationSettings\","
-                             "\"allow_flash_call\":false,"
-                             "\"allow_missed_call\":false,"
-                             "\"is_current_phone_number\":true,"
-                             "\"allow_sms_retriever_api\":true"
-                             "}"
-                             "}", fullPhoneNumber];
-        td_json_client_send(_client, [request UTF8String]);
-        NSLog(@"Login request sent: %@", request);
-
-        const char *response = td_json_client_receive(_client, 10.0);
-        if (response != NULL) {
-            NSString *responseString = [NSString stringWithUTF8String:response];
-            NSLog(@"Login response received: %@", responseString);
-
-            if ([responseString containsString:@"\"@type\":\"error\""]) {
-                NSLog(@"Login error: %@", responseString);
-                reject(@"LOGIN_ERROR", responseString, nil);
-                return;
-            }
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        const char *response = td_json_client_receive(self->_client, 10.0);
+        if (response) {
+            resolve([NSString stringWithUTF8String:response]);
         } else {
-            reject(@"NO_RESPONSE", @"No response from TDLib", nil);
-            return;
+            reject(@"RECEIVE_ERROR", @"No response from TDLib", nil);
         }
-
-        resolve(@"Phone number set successfully");
-    } @catch (NSException *exception) {
-        NSLog(@"Exception in login: %@", exception.reason);
-        reject(@"LOGIN_EXCEPTION", exception.reason, nil);
-    }
+    });
 }
 
-RCT_EXPORT_METHOD(verifyPhoneNumber:(NSString *)otp
-                  promise:(RCTPromiseResolveBlock)resolve
-                  rejecter:(RCTPromiseRejectBlock)reject) {
-    @try {
-        if (_client == NULL) {
-            reject(@"TDLIB_NOT_STARTED", @"TDLib client is not initialized. Call startTdLibService first.", nil);
-            return;
-        }
-
-        NSString *request = [NSString stringWithFormat:@"{\"@type\":\"checkAuthenticationCode\",\"code\":\"%@\"}", otp];
-        td_json_client_send(_client, [request UTF8String]);
-
-        while (true) {
-            const char *response = td_json_client_receive(_client, 10.0);
-            if (response != NULL) {
-                NSString *responseString = [NSString stringWithUTF8String:response];
-                NSLog(@"VerifyPhoneNumber response: %@", responseString);
-
-                NSDictionary *responseDict = [NSJSONSerialization JSONObjectWithData:[responseString dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
-                NSString *type = responseDict[@"@type"];
-
-                if ([type isEqualToString:@"ok"]) {
-                    resolve(@"Verification successful");
-                    return;
-                }
-
-                if ([type isEqualToString:@"error"]) {
-                    reject(@"VERIFY_PHONE_NUMBER_ERROR", responseString, nil);
-                    return;
-                }
-
-                if ([type containsString:@"update"]) {
-                    NSLog(@"Ignoring update: %@", type);
-                    continue;
-                }
-            } else {
-                reject(@"NO_RESPONSE", @"No response from TDLib", nil);
-                return;
-            }
-        }
-    } @catch (NSException *exception) {
-        reject(@"VERIFY_PHONE_NUMBER_EXCEPTION", exception.reason, nil);
-    }
-}
-
-RCT_EXPORT_METHOD(getProfile:(RCTPromiseResolveBlock)resolve
-                          rejecter:(RCTPromiseRejectBlock)reject) {
-    @try {
-        if (_client == NULL) {
-            reject(@"TDLIB_NOT_STARTED", @"TDLib client is not initialized. Call startTdLib first.", nil);
-            return;
-        }
-
-        NSString *request = @"{\"@type\":\"getMe\"}";
-        td_json_client_send(_client, [request UTF8String]);
-
-        while (true) {
-            const char *response = td_json_client_receive(_client, 10.0);
-            if (response != NULL) {
-                NSString *responseString = [NSString stringWithUTF8String:response];
-                NSLog(@"getProfile response: %@", responseString);
-
-                NSDictionary *responseDict = [NSJSONSerialization JSONObjectWithData:[responseString dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
-                NSString *type = responseDict[@"@type"];
-
-                if ([type isEqualToString:@"user"]) {
-                    resolve(responseDict);
-                    return;
-                }
-
-                if ([type isEqualToString:@"error"]) {
-                    reject(@"GET_PROFILE_ERROR", responseString, nil);
-                    return;
-                }
-
-                if ([type containsString:@"update"]) {
-                    NSLog(@"Ignoring update: %@", type);
-                    continue;
-                }
-            } else {
-                reject(@"NO_RESPONSE", @"No response from TDLib while getting profile", nil);
-                return;
-            }
-        }
-    } @catch (NSException *exception) {
-        reject(@"GET_PROFILE_EXCEPTION", exception.reason, nil);
-    }
-}
+// ==================== High-Level API ====================
 
 RCT_EXPORT_METHOD(startTdLib:(NSDictionary *)parameters
                   resolve:(RCTPromiseResolveBlock)resolve
@@ -376,85 +238,695 @@ RCT_EXPORT_METHOD(startTdLib:(NSDictionary *)parameters
 
         td_json_client_send(_client, "{\"@type\":\"setLogVerbosityLevel\",\"new_verbosity_level\":0}");
 
-        if (![self handleTdLibParameters:parameters]) {
-            reject(@"TDLIB_PARAMS_ERROR", @"Failed to set TDLib parameters", nil);
-            return;
-        }
+        [self startReceiveLoop];
 
-        resolve(@"TDLib service started successfully");
+        NSString *dbPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES)[0] stringByAppendingPathComponent:@"tdlib"];
+
+        NSDictionary *params = @{
+            @"@type": @"setTdlibParameters",
+            @"database_directory": dbPath,
+            @"use_message_database": @YES,
+            @"use_secret_chats": @YES,
+            @"api_id": parameters[@"api_id"],
+            @"api_hash": parameters[@"api_hash"],
+            @"system_language_code": parameters[@"system_language_code"] ?: @"en",
+            @"device_model": parameters[@"device_model"] ?: @"React Native",
+            @"system_version": parameters[@"system_version"] ?: @"1.0",
+            @"application_version": parameters[@"application_version"] ?: @"1.0",
+            @"enable_storage_optimizer": @YES,
+            @"use_file_database": @YES
+        };
+
+        [self sendTdLibRequest:params resolve:^(id result) {
+            resolve(@"TDLib service started successfully");
+        } reject:reject];
     } @catch (NSException *exception) {
         reject(@"TDLIB_START_ERROR", exception.reason, nil);
     }
 }
 
-- (BOOL)handleTdLibParameters:(NSDictionary *)parameters {
-    if (!parameters[@"api_id"] || !parameters[@"api_hash"]) {
-        NSLog(@"Missing api_id or api_hash in parameters");
-        return NO;
+RCT_EXPORT_METHOD(login:(NSDictionary *)userDetails
+                  promise:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    @try {
+        NSString *countryCode = userDetails[@"countrycode"];
+        NSString *phoneNumber = userDetails[@"phoneNumber"];
+        if (!countryCode || !phoneNumber) {
+            reject(@"INVALID_INPUT", @"Both countrycode and phoneNumber must be provided", nil);
+            return;
+        }
+
+        NSString *fullPhoneNumber = [NSString stringWithFormat:@"%@%@", countryCode, phoneNumber];
+
+        NSDictionary *request = @{
+            @"@type": @"setAuthenticationPhoneNumber",
+            @"phone_number": fullPhoneNumber,
+            @"settings": @{
+                @"@type": @"phoneNumberAuthenticationSettings",
+                @"allow_flash_call": @NO,
+                @"allow_missed_call": @NO,
+                @"is_current_phone_number": @YES,
+                @"allow_sms_retriever_api": @YES
+            }
+        };
+
+        [self sendTdLibRequest:request resolve:^(id result) {
+            resolve(@"Phone number set successfully");
+        } reject:reject];
+    } @catch (NSException *exception) {
+        reject(@"LOGIN_EXCEPTION", exception.reason, nil);
     }
-
-    NSString *parametersJSON = [NSString stringWithFormat:
-                                 @"{"
-                                 "\"@type\":\"setTdlibParameters\","
-                                 "\"database_directory\":\"%@/tdlib\","
-                                 "\"use_message_database\":true,"
-                                 "\"use_secret_chats\":true,"
-                                 "\"api_id\":%@,"
-                                 "\"api_hash\":\"%@\","
-                                 "\"system_language_code\":\"%@\","
-                                 "\"device_model\":\"%@\","
-                                 "\"system_version\":\"%@\","
-                                 "\"application_version\":\"%@\","
-                                 "\"enable_storage_optimizer\":true,"
-                                 "\"use_file_database\":true"
-                                 "}",
-                                 NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES)[0],
-                                 parameters[@"api_id"],
-                                 parameters[@"api_hash"],
-                                 parameters[@"system_language_code"] ?: @"en",
-                                 parameters[@"device_model"] ?: @"React Native",
-                                 parameters[@"system_version"] ?: @"1.0",
-                                 parameters[@"application_version"] ?: @"1.0"];
-
-    td_json_client_send(_client, [parametersJSON UTF8String]);
-    return YES;
 }
 
-- (NSDictionary *)fetchAuthorizationStateWithError:(NSError **)error {
-    if (_client == NULL) {
-        if (error) {
-            *error = [NSError errorWithDomain:@"TDLibErrorDomain"
-                                         code:1
-                                     userInfo:@{NSLocalizedDescriptionKey: @"TDLib client is not initialized. Call startTdLibService first."}];
+RCT_EXPORT_METHOD(verifyPhoneNumber:(NSString *)otp
+                  promise:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    NSDictionary *request = @{
+        @"@type": @"checkAuthenticationCode",
+        @"code": otp
+    };
+    [self sendTdLibRequest:request resolve:^(id result) {
+        resolve(@"Verification successful");
+    } reject:reject];
+}
+
+RCT_EXPORT_METHOD(verifyPassword:(NSString *)password
+                  promise:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    NSDictionary *request = @{
+        @"@type": @"checkAuthenticationPassword",
+        @"password": password
+    };
+    [self sendTdLibRequest:request resolve:^(id result) {
+        resolve(@"Password verification successful");
+    } reject:reject];
+}
+
+RCT_EXPORT_METHOD(getAuthorizationState:(RCTPromiseResolveBlock)resolve
+                              rejecter:(RCTPromiseRejectBlock)reject) {
+    [self sendTdLibRequest:@{@"@type": @"getAuthorizationState"} resolve:resolve reject:reject];
+}
+
+RCT_EXPORT_METHOD(getProfile:(RCTPromiseResolveBlock)resolve
+                          rejecter:(RCTPromiseRejectBlock)reject) {
+    [self sendTdLibRequest:@{@"@type": @"getMe"} resolve:resolve reject:reject];
+}
+
+RCT_EXPORT_METHOD(logout:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    [self sendTdLibRequest:@{@"@type": @"logOut"} resolve:^(id result) {
+        resolve(@"Logout successful");
+    } reject:reject];
+}
+
+RCT_EXPORT_METHOD(destroy:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    [self sendTdLibRequest:@{@"@type": @"destroy"} resolve:^(id result) {
+        [self stopReceiveLoop];
+        self->_client = NULL;
+        resolve(@"TDLib destroyed");
+    } reject:reject];
+}
+
+// ==================== Chat Operations ====================
+
+RCT_EXPORT_METHOD(getChat:(double)chatId
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    [self sendTdLibRequest:@{@"@type": @"getChat", @"chat_id": @((long long)chatId)} resolve:resolve reject:reject];
+}
+
+RCT_EXPORT_METHOD(openChat:(double)chatId
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    [self sendTdLibRequest:@{@"@type": @"openChat", @"chat_id": @((long long)chatId)} resolve:^(id result) {
+        // After opening, fetch the chat to return updated data
+        [self sendTdLibRequest:@{@"@type": @"getChat", @"chat_id": @((long long)chatId)} resolve:resolve reject:reject];
+    } reject:reject];
+}
+
+RCT_EXPORT_METHOD(closeChat:(double)chatId
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    [self sendTdLibRequest:@{@"@type": @"closeChat", @"chat_id": @((long long)chatId)} resolve:^(id result) {
+        resolve(@"{\"success\":true}");
+    } reject:reject];
+}
+
+RCT_EXPORT_METHOD(searchPublicChat:(NSString *)username
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    NSString *clean = [username hasPrefix:@"@"] ? [username substringFromIndex:1] : username;
+    [self sendTdLibRequest:@{@"@type": @"searchPublicChat", @"username": clean} resolve:resolve reject:reject];
+}
+
+RCT_EXPORT_METHOD(searchChats:(NSString *)query
+                  limit:(int)limit
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    int safeLimit = MAX(1, MIN(limit, 50));
+    [self sendTdLibRequest:@{@"@type": @"searchChats", @"query": query ?: @"", @"limit": @(safeLimit)} resolve:resolve reject:reject];
+}
+
+RCT_EXPORT_METHOD(joinChat:(double)chatId
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    [self sendTdLibRequest:@{@"@type": @"joinChat", @"chat_id": @((long long)chatId)} resolve:resolve reject:reject];
+}
+
+RCT_EXPORT_METHOD(leaveChat:(double)chatId
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    [self sendTdLibRequest:@{@"@type": @"leaveChat", @"chat_id": @((long long)chatId)} resolve:resolve reject:reject];
+}
+
+RCT_EXPORT_METHOD(createPrivateChat:(double)userId
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    [self sendTdLibRequest:@{@"@type": @"createPrivateChat", @"user_id": @((long long)userId), @"force": @NO} resolve:resolve reject:reject];
+}
+
+RCT_EXPORT_METHOD(getChatMember:(double)chatId
+                  userId:(double)userId
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    NSDictionary *request = @{
+        @"@type": @"getChatMember",
+        @"chat_id": @((long long)chatId),
+        @"member_id": @{
+            @"@type": @"messageSenderUser",
+            @"user_id": @((long long)userId)
         }
-        return nil;
+    };
+    [self sendTdLibRequest:request resolve:resolve reject:reject];
+}
+
+RCT_EXPORT_METHOD(getSupergroup:(double)supergroupId
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    [self sendTdLibRequest:@{@"@type": @"getSupergroup", @"supergroup_id": @((int)supergroupId)} resolve:resolve reject:reject];
+}
+
+// ==================== Chat List ====================
+
+RCT_EXPORT_METHOD(loadChats:(int)limit
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    NSDictionary *request = @{
+        @"@type": @"loadChats",
+        @"limit": @(limit)
+    };
+    [self sendTdLibRequest:request resolve:^(id result) {
+        resolve(@"Chats loaded successfully");
+    } reject:^(NSString *code, NSString *message, NSError *error) {
+        // Error 404 means end of chat list
+        if ([code isEqualToString:@"404"]) {
+            resolve(@"No more chats to load");
+        } else {
+            reject(code, message, error);
+        }
+    }];
+}
+
+RCT_EXPORT_METHOD(getChats:(int)limit
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    NSDictionary *request = @{
+        @"@type": @"getChats",
+        @"limit": @(limit)
+    };
+    [self sendTdLibRequest:request resolve:^(id result) {
+        // result is JSON string with chat_ids array
+        NSData *data = [result dataUsingEncoding:NSUTF8StringEncoding];
+        NSDictionary *dict = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+        NSArray *chatIds = dict[@"chat_ids"];
+
+        if (!chatIds || chatIds.count == 0) {
+            resolve(@"[]");
+            return;
+        }
+
+        NSMutableArray *results = [NSMutableArray new];
+        dispatch_group_t group = dispatch_group_create();
+
+        for (NSNumber *chatId in chatIds) {
+            dispatch_group_enter(group);
+            [self sendTdLibRequest:@{@"@type": @"getChat", @"chat_id": chatId}
+                           resolve:^(id chatResult) {
+                @synchronized (results) {
+                    if (chatResult) [results addObject:chatResult];
+                }
+                dispatch_group_leave(group);
+            } reject:^(NSString *code, NSString *message, NSError *error) {
+                dispatch_group_leave(group);
+            }];
+        }
+
+        dispatch_group_notify(group, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+            NSString *json = [NSString stringWithFormat:@"[%@]", [results componentsJoinedByString:@","]];
+            resolve(json);
+        });
+    } reject:reject];
+}
+
+// ==================== Message Operations ====================
+
+RCT_EXPORT_METHOD(getMessage:(double)chatId
+                  messageId:(double)messageId
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    NSDictionary *request = @{
+        @"@type": @"getMessage",
+        @"chat_id": @((long long)chatId),
+        @"message_id": @((long long)messageId)
+    };
+    [self sendTdLibRequest:request resolve:resolve reject:reject];
+}
+
+RCT_EXPORT_METHOD(getChatHistory:(double)chatId
+                  fromMessageId:(double)fromMessageId
+                  limit:(int)limit
+                  offset:(int)offset
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    NSDictionary *request = @{
+        @"@type": @"getChatHistory",
+        @"chat_id": @((long long)chatId),
+        @"from_message_id": @((long long)fromMessageId),
+        @"offset": @(offset),
+        @"limit": @(limit),
+        @"only_local": @NO
+    };
+    [self sendTdLibRequest:request resolve:resolve reject:reject];
+}
+
+RCT_EXPORT_METHOD(sendMessage:(double)chatId
+                  text:(NSString *)text
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    NSDictionary *request = @{
+        @"@type": @"sendMessage",
+        @"chat_id": @((long long)chatId),
+        @"input_message_content": @{
+            @"@type": @"inputMessageText",
+            @"text": @{
+                @"@type": @"formattedText",
+                @"text": text
+            }
+        }
+    };
+    [self sendTdLibRequest:request resolve:resolve reject:reject];
+}
+
+RCT_EXPORT_METHOD(viewMessages:(double)chatId
+                  messageIds:(NSArray *)messageIds
+                  forceRead:(BOOL)forceRead
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    NSDictionary *request = @{
+        @"@type": @"viewMessages",
+        @"chat_id": @((long long)chatId),
+        @"message_ids": messageIds,
+        @"source": @{@"@type": @"messageSourceChatList"},
+        @"force_read": @(forceRead)
+    };
+    [self sendTdLibRequest:request resolve:resolve reject:reject];
+}
+
+RCT_EXPORT_METHOD(getMessageThread:(double)chatId
+                  messageId:(double)messageId
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    NSDictionary *request = @{
+        @"@type": @"getMessageThread",
+        @"chat_id": @((long long)chatId),
+        @"message_id": @((long long)messageId)
+    };
+    [self sendTdLibRequest:request resolve:resolve reject:reject];
+}
+
+RCT_EXPORT_METHOD(getMessageThreadHistory:(double)chatId
+                  messageThreadId:(double)messageThreadId
+                  fromMessageId:(double)fromMessageId
+                  offset:(int)offset
+                  limit:(int)limit
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    NSDictionary *request = @{
+        @"@type": @"getMessageThreadHistory",
+        @"chat_id": @((long long)chatId),
+        @"message_thread_id": @((long long)messageThreadId),
+        @"from_message_id": @((long long)fromMessageId),
+        @"offset": @(offset),
+        @"limit": @(MAX(1, limit))
+    };
+    [self sendTdLibRequest:request resolve:resolve reject:reject];
+}
+
+RCT_EXPORT_METHOD(getChatMessagePosition:(double)chatId
+                  messageId:(double)messageId
+                  threadId:(double)threadId
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    NSMutableDictionary *request = [@{
+        @"@type": @"getChatMessagePosition",
+        @"chat_id": @((long long)chatId),
+        @"message_id": @((long long)messageId),
+        @"filter": @{@"@type": @"searchMessagesFilterEmpty"}
+    } mutableCopy];
+
+    if (threadId != 0) {
+        request[@"message_topic"] = @{@"@type": @"messageTopicForum", @"forum_topic_id": @((int)threadId)};
     }
 
-    while (true) {
-        const char *response = td_json_client_receive(_client, 10.0);
-        if (response != NULL) {
-            NSString *responseString = [NSString stringWithUTF8String:response];
-            NSLog(@"TDLib response: %@", responseString);
+    [self sendTdLibRequest:request resolve:resolve reject:reject];
+}
 
-            NSDictionary *responseDict = [NSJSONSerialization JSONObjectWithData:[responseString dataUsingEncoding:NSUTF8StringEncoding] options:0 error:error];
-            NSString *type = responseDict[@"@type"];
+RCT_EXPORT_METHOD(getMessagesCompat:(double)chatId
+                  messageIds:(NSArray *)messageIds
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    NSDictionary *request = @{
+        @"@type": @"getMessages",
+        @"chat_id": @((long long)chatId),
+        @"message_ids": messageIds
+    };
+    [self sendTdLibRequest:request resolve:resolve reject:reject];
+}
 
-            if ([type hasPrefix:@"authorizationState"]) {
-                return responseDict;
-            }
+// ==================== Comments ====================
 
-            if ([type containsString:@"update"]) {
-                NSLog(@"Ignoring update: %@", type);
-                continue;
-            }
-        } else {
-            if (error) {
-                *error = [NSError errorWithDomain:@"TDLibErrorDomain"
-                                             code:2
-                                         userInfo:@{NSLocalizedDescriptionKey: @"No response from TDLib"}];
-            }
-            return nil;
+RCT_EXPORT_METHOD(addComment:(double)chatId
+                  threadId:(double)threadId
+                  replyToMessageId:(double)replyToMessageId
+                  text:(NSString *)text
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    NSMutableDictionary *request = [@{
+        @"@type": @"sendMessage",
+        @"chat_id": @((long long)chatId),
+        @"message_topic": @{@"@type": @"messageTopicForum", @"forum_topic_id": @((int)threadId)},
+        @"input_message_content": @{
+            @"@type": @"inputMessageText",
+            @"text": @{
+                @"@type": @"formattedText",
+                @"text": text
+            },
+            @"clear_draft": @YES
         }
+    } mutableCopy];
+
+    if (replyToMessageId > 0) {
+        request[@"reply_to"] = @{
+            @"@type": @"inputMessageReplyToMessage",
+            @"message_id": @((long long)replyToMessageId)
+        };
+    }
+
+    [self sendTdLibRequest:request resolve:resolve reject:reject];
+}
+
+RCT_EXPORT_METHOD(deleteComment:(double)chatId
+                  messageId:(double)messageId
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    NSDictionary *request = @{
+        @"@type": @"deleteMessages",
+        @"chat_id": @((long long)chatId),
+        @"message_ids": @[@((long long)messageId)],
+        @"revoke": @YES
+    };
+    [self sendTdLibRequest:request resolve:^(id result) {
+        resolve(@(YES));
+    } reject:reject];
+}
+
+// ==================== Reactions ====================
+
+RCT_EXPORT_METHOD(addMessageReaction:(double)chatId
+                  messageId:(double)messageId
+                  emoji:(NSString *)emoji
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    NSDictionary *request = @{
+        @"@type": @"addMessageReaction",
+        @"chat_id": @((long long)chatId),
+        @"message_id": @((long long)messageId),
+        @"reaction_type": @{
+            @"@type": @"reactionTypeEmoji",
+            @"emoji": emoji
+        },
+        @"is_big": @NO,
+        @"update_recent_reactions": @NO
+    };
+    [self sendTdLibRequest:request resolve:^(id result) {
+        resolve(@"Reaction added successfully");
+    } reject:reject];
+}
+
+RCT_EXPORT_METHOD(removeMessageReaction:(double)chatId
+                  messageId:(double)messageId
+                  emoji:(NSString *)emoji
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    NSDictionary *request = @{
+        @"@type": @"removeMessageReaction",
+        @"chat_id": @((long long)chatId),
+        @"message_id": @((long long)messageId),
+        @"reaction_type": @{
+            @"@type": @"reactionTypeEmoji",
+            @"emoji": emoji
+        }
+    };
+    [self sendTdLibRequest:request resolve:^(id result) {
+        resolve(@"Reaction removed successfully");
+    } reject:reject];
+}
+
+RCT_EXPORT_METHOD(getAddedReactions:(double)chatId
+                  messageId:(double)messageId
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    NSDictionary *request = @{
+        @"@type": @"getMessageAddedReactions",
+        @"chat_id": @((long long)chatId),
+        @"message_id": @((long long)messageId),
+        @"offset": @"",
+        @"limit": @50
+    };
+    [self sendTdLibRequest:request resolve:resolve reject:reject];
+}
+
+// ==================== User Operations ====================
+
+RCT_EXPORT_METHOD(getUserProfile:(double)userId
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    [self sendTdLibRequest:@{@"@type": @"getUser", @"user_id": @((long long)userId)} resolve:resolve reject:reject];
+}
+
+RCT_EXPORT_METHOD(getUserFull:(double)userId
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    [self sendTdLibRequest:@{@"@type": @"getUserFullInfo", @"user_id": @((long long)userId)} resolve:resolve reject:reject];
+}
+
+RCT_EXPORT_METHOD(getUserProfilePhotos:(double)userId
+                  offset:(int)offset
+                  limit:(int)limit
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    NSDictionary *request = @{
+        @"@type": @"getUserProfilePhotos",
+        @"user_id": @((long long)userId),
+        @"offset": @(offset),
+        @"limit": @(limit)
+    };
+    [self sendTdLibRequest:request resolve:resolve reject:reject];
+}
+
+RCT_EXPORT_METHOD(getUsersCompat:(NSArray *)userIds
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    if (!userIds || userIds.count == 0) {
+        resolve(@"[]");
+        return;
+    }
+
+    NSMutableArray *results = [NSMutableArray new];
+    dispatch_group_t group = dispatch_group_create();
+
+    for (NSNumber *userId in userIds) {
+        dispatch_group_enter(group);
+        [self sendTdLibRequest:@{@"@type": @"getUser", @"user_id": @([userId longLongValue])}
+                       resolve:^(id result) {
+            @synchronized (results) {
+                if (result) [results addObject:result];
+            }
+            dispatch_group_leave(group);
+        } reject:^(NSString *code, NSString *message, NSError *error) {
+            dispatch_group_leave(group);
+        }];
+    }
+
+    dispatch_group_notify(group, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        NSString *json = [NSString stringWithFormat:@"[%@]", [results componentsJoinedByString:@","]];
+        resolve(json);
+    });
+}
+
+// ==================== File Operations ====================
+
+RCT_EXPORT_METHOD(downloadFile:(int)fileId
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    NSDictionary *request = @{
+        @"@type": @"downloadFile",
+        @"file_id": @(fileId),
+        @"priority": @1,
+        @"offset": @0,
+        @"limit": @0,
+        @"synchronous": @YES
+    };
+    [self sendTdLibRequest:request resolve:resolve reject:reject];
+}
+
+RCT_EXPORT_METHOD(downloadFileByRemoteId:(NSString *)remoteId
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    NSDictionary *getFileRequest = @{
+        @"@type": @"getRemoteFile",
+        @"remote_file_id": remoteId
+    };
+    [self sendTdLibRequest:getFileRequest resolve:^(id result) {
+        NSData *data = [result dataUsingEncoding:NSUTF8StringEncoding];
+        NSDictionary *fileDict = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+        NSNumber *fileId = fileDict[@"id"];
+        if (fileId) {
+            NSDictionary *downloadRequest = @{
+                @"@type": @"downloadFile",
+                @"file_id": fileId,
+                @"priority": @1,
+                @"offset": @0,
+                @"limit": @0,
+                @"synchronous": @YES
+            };
+            [self sendTdLibRequest:downloadRequest resolve:resolve reject:reject];
+        } else {
+            reject(@"RESOLVE_FAILED", @"Could not resolve file by remote id", nil);
+        }
+    } reject:reject];
+}
+
+RCT_EXPORT_METHOD(cancelDownloadFile:(int)fileId
+                  onlyIfPending:(BOOL)onlyIfPending
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    NSDictionary *request = @{
+        @"@type": @"cancelDownloadFile",
+        @"file_id": @(fileId),
+        @"only_if_pending": @(onlyIfPending)
+    };
+    [self sendTdLibRequest:request resolve:resolve reject:reject];
+}
+
+RCT_EXPORT_METHOD(cancelDownloadByRemoteId:(NSString *)remoteFileId
+                  onlyIfPending:(BOOL)onlyIfPending
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    NSDictionary *getFileRequest = @{
+        @"@type": @"getRemoteFile",
+        @"remote_file_id": remoteFileId
+    };
+    [self sendTdLibRequest:getFileRequest resolve:^(id result) {
+        NSData *data = [result dataUsingEncoding:NSUTF8StringEncoding];
+        NSDictionary *fileDict = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+        NSNumber *fileId = fileDict[@"id"];
+        if (fileId && [fileId intValue] != 0) {
+            NSDictionary *cancelRequest = @{
+                @"@type": @"cancelDownloadFile",
+                @"file_id": fileId,
+                @"only_if_pending": @(onlyIfPending)
+            };
+            [self sendTdLibRequest:cancelRequest resolve:resolve reject:reject];
+        } else {
+            reject(@"NO_TD_FILE_ID", @"GetRemoteFile returned file with id=0; cannot cancel", nil);
+        }
+    } reject:reject];
+}
+
+RCT_EXPORT_METHOD(getFile:(int)fileId
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    [self sendTdLibRequest:@{@"@type": @"getFile", @"file_id": @(fileId)} resolve:resolve reject:reject];
+}
+
+// ==================== Options ====================
+
+RCT_EXPORT_METHOD(getOption:(NSString *)name
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    [self sendTdLibRequest:@{@"@type": @"getOption", @"name": name} resolve:^(id result) {
+        NSData *data = [result dataUsingEncoding:NSUTF8StringEncoding];
+        NSDictionary *dict = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+        NSString *type = dict[@"@type"];
+
+        if ([type isEqualToString:@"optionValueString"]) {
+            resolve(dict[@"value"]);
+        } else if ([type isEqualToString:@"optionValueInteger"]) {
+            resolve([NSString stringWithFormat:@"%@", dict[@"value"]]);
+        } else if ([type isEqualToString:@"optionValueBoolean"]) {
+            resolve([NSString stringWithFormat:@"%@", dict[@"value"]]);
+        } else if ([type isEqualToString:@"optionValueEmpty"]) {
+            resolve(nil);
+        } else {
+            resolve(result);
+        }
+    } reject:reject];
+}
+
+RCT_EXPORT_METHOD(setOption:(NSString *)name
+                  value:(NSDictionary *)value
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    NSString *type = value[@"type"];
+    NSMutableDictionary *optionValue = [NSMutableDictionary new];
+
+    if ([type isEqualToString:@"string"]) {
+        optionValue[@"@type"] = @"optionValueString";
+        optionValue[@"value"] = value[@"value"];
+    } else if ([type isEqualToString:@"integer"]) {
+        optionValue[@"@type"] = @"optionValueInteger";
+        optionValue[@"value"] = value[@"value"];
+    } else if ([type isEqualToString:@"boolean"]) {
+        optionValue[@"@type"] = @"optionValueBoolean";
+        optionValue[@"value"] = value[@"value"];
+    } else if ([type isEqualToString:@"empty"]) {
+        optionValue[@"@type"] = @"optionValueEmpty";
+    } else {
+        reject(@"INVALID_OPTION_TYPE", @"type must be one of: string, integer, boolean, empty", nil);
+        return;
+    }
+
+    NSDictionary *request = @{
+        @"@type": @"setOption",
+        @"name": name,
+        @"value": optionValue
+    };
+    [self sendTdLibRequest:request resolve:^(id result) {
+        resolve(@"Option set successfully");
+    } reject:reject];
+}
+
+// ==================== Utilities ====================
+
+RCT_EXPORT_METHOD(echoToJs:(NSDictionary *)message) {
+    if (_hasListeners) {
+        NSDictionary *event = @{
+            @"type": @"EchoFromObjC",
+            @"payload": message
+        };
+        [self sendEventWithName:@"tdlib-update" body:event];
     }
 }
 

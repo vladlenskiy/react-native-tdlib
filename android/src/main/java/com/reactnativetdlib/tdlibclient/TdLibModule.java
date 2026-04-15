@@ -1371,9 +1371,160 @@ public void addComment(
     }
 
     // Required to support EventEmitter in JS
+    @ReactMethod
     public void addListener(String eventName) {}
+    @ReactMethod
     public void removeListeners(double count) {}
 
+
+    @ReactMethod
+    public void loadChats(int limit, Promise promise) {
+        try {
+            if (client == null) {
+                promise.reject("CLIENT_NOT_INITIALIZED", "TDLib client is not initialized");
+                return;
+            }
+
+            TdApi.LoadChats request = new TdApi.LoadChats(null, limit);
+            client.send(request, object -> {
+                if (object instanceof TdApi.Ok) {
+                    promise.resolve("Chats loaded successfully");
+                } else if (object instanceof TdApi.Error) {
+                    TdApi.Error error = (TdApi.Error) object;
+                    // Error 404 means we've reached the end of the chat list
+                    if (error.code == 404) {
+                        promise.resolve("No more chats to load");
+                    } else {
+                        promise.reject("LOAD_CHATS_ERROR", error.message);
+                    }
+                }
+            });
+        } catch (Exception e) {
+            promise.reject("LOAD_CHATS_EXCEPTION", e.getMessage());
+        }
+    }
+
+    @ReactMethod
+    public void getChats(int limit, Promise promise) {
+        try {
+            if (client == null) {
+                promise.reject("CLIENT_NOT_INITIALIZED", "TDLib client is not initialized");
+                return;
+            }
+
+            TdApi.GetChats request = new TdApi.GetChats(null, limit);
+            client.send(request, object -> {
+                if (object instanceof TdApi.Chats) {
+                    TdApi.Chats chats = (TdApi.Chats) object;
+                    long[] ids = chats.chatIds != null ? chats.chatIds : new long[0];
+
+                    if (ids.length == 0) {
+                        promise.resolve("[]");
+                        return;
+                    }
+
+                    final List<String> results = new CopyOnWriteArrayList<>();
+                    final CountDownLatch latch = new CountDownLatch(ids.length);
+
+                    for (long chatId : ids) {
+                        client.send(new TdApi.GetChat(chatId), chatObj -> {
+                            try {
+                                if (chatObj instanceof TdApi.Chat) {
+                                    results.add(gson.toJson(chatObj));
+                                }
+                            } catch (Exception ignored) {
+                            } finally {
+                                latch.countDown();
+                            }
+                        });
+                    }
+
+                    new Thread(() -> {
+                        try {
+                            latch.await(5, TimeUnit.SECONDS);
+                            promise.resolve("[" + String.join(",", results) + "]");
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            promise.reject("GET_CHATS_INTERRUPTED", e.getMessage());
+                        }
+                    }).start();
+                } else if (object instanceof TdApi.Error) {
+                    TdApi.Error error = (TdApi.Error) object;
+                    promise.reject("GET_CHATS_ERROR", error.message);
+                }
+            });
+        } catch (Exception e) {
+            promise.reject("GET_CHATS_EXCEPTION", e.getMessage());
+        }
+    }
+
+    @ReactMethod
+    public void getOption(String name, Promise promise) {
+        try {
+            if (client == null) {
+                promise.reject("CLIENT_NOT_INITIALIZED", "TDLib client is not initialized");
+                return;
+            }
+
+            TdApi.GetOption request = new TdApi.GetOption(name);
+            client.send(request, object -> {
+                if (object instanceof TdApi.OptionValueString) {
+                    promise.resolve(((TdApi.OptionValueString) object).value);
+                } else if (object instanceof TdApi.OptionValueInteger) {
+                    promise.resolve(String.valueOf(((TdApi.OptionValueInteger) object).value));
+                } else if (object instanceof TdApi.OptionValueBoolean) {
+                    promise.resolve(String.valueOf(((TdApi.OptionValueBoolean) object).value));
+                } else if (object instanceof TdApi.OptionValueEmpty) {
+                    promise.resolve(null);
+                } else if (object instanceof TdApi.Error) {
+                    TdApi.Error error = (TdApi.Error) object;
+                    promise.reject("GET_OPTION_ERROR", error.message);
+                } else {
+                    promise.resolve(gson.toJson(object));
+                }
+            });
+        } catch (Exception e) {
+            promise.reject("GET_OPTION_EXCEPTION", e.getMessage());
+        }
+    }
+
+    @ReactMethod
+    public void setOption(String name, ReadableMap value, Promise promise) {
+        try {
+            if (client == null) {
+                promise.reject("CLIENT_NOT_INITIALIZED", "TDLib client is not initialized");
+                return;
+            }
+
+            TdApi.OptionValue optionValue;
+            String type = value.getString("type");
+
+            if ("string".equals(type)) {
+                optionValue = new TdApi.OptionValueString(value.getString("value"));
+            } else if ("integer".equals(type)) {
+                optionValue = new TdApi.OptionValueInteger((long) value.getDouble("value"));
+            } else if ("boolean".equals(type)) {
+                optionValue = new TdApi.OptionValueBoolean(value.getBoolean("value"));
+            } else if ("empty".equals(type)) {
+                optionValue = new TdApi.OptionValueEmpty();
+            } else {
+                promise.reject("INVALID_OPTION_TYPE", "type must be one of: string, integer, boolean, empty");
+                return;
+            }
+
+            TdApi.SetOption request = new TdApi.SetOption(name, optionValue);
+            client.send(request, object -> {
+                if (object instanceof TdApi.Ok) {
+                    promise.resolve("Option set successfully");
+                } else if (object instanceof TdApi.Error) {
+                    TdApi.Error error = (TdApi.Error) object;
+                    promise.reject("SET_OPTION_ERROR", error.message);
+                }
+            });
+        } catch (Exception e) {
+            promise.reject("SET_OPTION_EXCEPTION", e.getMessage());
+        }
+    }
 
     @ReactMethod
     public void addMessageReaction(double chatId, double messageId, String emoji, Promise promise) {

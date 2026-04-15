@@ -3,7 +3,8 @@
 
 #import <Foundation/Foundation.h>
 #import <React/RCTBridgeModule.h>
+#import <React/RCTEventEmitter.h>
 
-@interface TdLibModule : NSObject <RCTBridgeModule>
+@interface TdLibModule : RCTEventEmitter <RCTBridgeModule>
 
 @end
