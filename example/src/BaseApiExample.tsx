@@ -1,6 +1,10 @@
 /**
- * Base Methods Example
- * In progress
+ * Base Methods Example (Low-Level API)
+ *
+ * NOTE: This example uses the low-level td_json_client_* API.
+ * Do NOT mix with the high-level API (startTdLib) — they are
+ * mutually exclusive. After startTdLib, td_json_client_receive
+ * is not available; use NativeEventEmitter instead.
  */
 
 import React, {useCallback, useEffect} from 'react';
