@@ -708,27 +708,34 @@ public void searchChats(String query, int limit, Promise promise) {
                         promise.resolve("[]");
                         return;
                     }
-                    // fetch each chat (parallel-ish using threads)
-                    final List<String> out = new ArrayList<>();
+                    // fetch each chat preserving order
+                    final String[] out = new String[ids.length];
                     final CountDownLatch latch = new CountDownLatch(ids.length);
-                    for (long cid : ids) {
-                        client.send(new TdApi.GetChat(cid), chatObj -> {
+                    for (int i = 0; i < ids.length; i++) {
+                        final int index = i;
+                        client.send(new TdApi.GetChat(ids[i]), chatObj -> {
                             try {
                                 if (chatObj != null && chatObj.getConstructor() == TdApi.Chat.CONSTRUCTOR) {
-                                    TdApi.Chat chat = (TdApi.Chat) chatObj;
-                                    out.add(gson.toJson(chat));
+                                    out[index] = gson.toJson(chatObj);
                                 }
                             } catch (Exception ignored) {}
                             finally { latch.countDown(); }
                         });
                     }
-                    // wait up to a short timeout for all GetChat responses
                     try {
-                        latch.await(3, TimeUnit.SECONDS);
+                        latch.await(5, TimeUnit.SECONDS);
                     } catch (InterruptedException ignored) {}
-                    // return JSON array of chat objects
-                    String jsonArray = "[" + String.join(",", out) + "]";
-                    promise.resolve(jsonArray);
+                    StringBuilder sb = new StringBuilder("[");
+                    boolean first = true;
+                    for (String r : out) {
+                        if (r != null) {
+                            if (!first) sb.append(",");
+                            sb.append(r);
+                            first = false;
+                        }
+                    }
+                    sb.append("]");
+                    promise.resolve(sb.toString());
                     return;
                 }
                 // fallback: return whatever responded
@@ -1423,14 +1430,15 @@ public void addComment(
                         return;
                     }
 
-                    final List<String> results = new CopyOnWriteArrayList<>();
+                    final String[] results = new String[ids.length];
                     final CountDownLatch latch = new CountDownLatch(ids.length);
 
-                    for (long chatId : ids) {
-                        client.send(new TdApi.GetChat(chatId), chatObj -> {
+                    for (int i = 0; i < ids.length; i++) {
+                        final int index = i;
+                        client.send(new TdApi.GetChat(ids[i]), chatObj -> {
                             try {
                                 if (chatObj instanceof TdApi.Chat) {
-                                    results.add(gson.toJson(chatObj));
+                                    results[index] = gson.toJson(chatObj);
                                 }
                             } catch (Exception ignored) {
                             } finally {
@@ -1442,7 +1450,17 @@ public void addComment(
                     new Thread(() -> {
                         try {
                             latch.await(5, TimeUnit.SECONDS);
-                            promise.resolve("[" + String.join(",", results) + "]");
+                            StringBuilder sb = new StringBuilder("[");
+                            boolean first = true;
+                            for (String r : results) {
+                                if (r != null) {
+                                    if (!first) sb.append(",");
+                                    sb.append(r);
+                                    first = false;
+                                }
+                            }
+                            sb.append("]");
+                            promise.resolve(sb.toString());
                         } catch (InterruptedException e) {
                             Thread.currentThread().interrupt();
                             promise.reject("GET_CHATS_INTERRUPTED", e.getMessage());

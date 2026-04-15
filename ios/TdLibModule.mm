@@ -119,6 +119,9 @@ RCT_EXPORT_METHOD(removeListeners:(double)count) {
     return reqId;
 }
 
+/**
+ * Send a TDLib request and resolve with the raw JSON response string.
+ */
 - (void)sendTdLibRequest:(NSDictionary *)request
                  resolve:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject {
@@ -150,6 +153,18 @@ RCT_EXPORT_METHOD(removeListeners:(double)count) {
 
     NSString *jsonString = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
     td_json_client_send(_client, [jsonString UTF8String]);
+}
+
+/**
+ * Send a TDLib request and resolve with NSDictionary { raw: jsonString }.
+ * Matches Android's WritableMap { raw: ... } return pattern.
+ */
+- (void)sendTdLibRequestWithRawResult:(NSDictionary *)request
+                              resolve:(RCTPromiseResolveBlock)resolve
+                               reject:(RCTPromiseRejectBlock)reject {
+    [self sendTdLibRequest:request resolve:^(id result) {
+        resolve(@{@"raw": result ?: @""});
+    } reject:reject];
 }
 
 // ==================== Base API Methods ====================
@@ -201,6 +216,30 @@ RCT_EXPORT_METHOD(td_json_client_send:(NSDictionary *)request
             return;
         }
 
+        // Handle legacy setTdlibParameters format with nested "parameters" key
+        if ([request[@"@type"] isEqualToString:@"setTdlibParameters"] && request[@"parameters"]) {
+            NSDictionary *params = request[@"parameters"];
+            NSString *dbPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES)[0]
+                                stringByAppendingPathComponent:@"tdlib"];
+
+            NSDictionary *flatRequest = @{
+                @"@type": @"setTdlibParameters",
+                @"database_directory": dbPath,
+                @"use_message_database": @YES,
+                @"use_secret_chats": @YES,
+                @"api_id": params[@"api_id"],
+                @"api_hash": params[@"api_hash"],
+                @"system_language_code": params[@"system_language_code"] ?: @"en",
+                @"device_model": params[@"device_model"] ?: @"React Native",
+                @"system_version": params[@"system_version"] ?: @"1.0",
+                @"application_version": params[@"application_version"] ?: @"1.0",
+                @"enable_storage_optimizer": @YES,
+                @"use_file_database": @YES
+            };
+            [self sendTdLibRequest:flatRequest resolve:resolve reject:reject];
+            return;
+        }
+
         [self sendTdLibRequest:request resolve:resolve reject:reject];
     } @catch (NSException *exception) {
         reject(@"SEND_EXCEPTION", exception.reason, nil);
@@ -210,6 +249,13 @@ RCT_EXPORT_METHOD(td_json_client_send:(NSDictionary *)request
 RCT_EXPORT_METHOD(td_json_client_receive:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
     if (_client == NULL) {
         reject(@"CLIENT_NOT_INITIALIZED", @"TDLib client not initialized", nil);
+        return;
+    }
+
+    if (_receiveLoopRunning) {
+        reject(@"RECEIVE_LOOP_ACTIVE",
+               @"Cannot use td_json_client_receive while the high-level API (startTdLib) is active. "
+               @"Use NativeEventEmitter to listen for 'tdlib-update' events instead.", nil);
         return;
     }
 
@@ -240,7 +286,8 @@ RCT_EXPORT_METHOD(startTdLib:(NSDictionary *)parameters
 
         [self startReceiveLoop];
 
-        NSString *dbPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES)[0] stringByAppendingPathComponent:@"tdlib"];
+        NSString *dbPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES)[0]
+                            stringByAppendingPathComponent:@"tdlib"];
 
         NSDictionary *params = @{
             @"@type": @"setTdlibParameters",
@@ -353,15 +400,17 @@ RCT_EXPORT_METHOD(destroy:(RCTPromiseResolveBlock)resolve
 RCT_EXPORT_METHOD(getChat:(double)chatId
                   resolve:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject) {
-    [self sendTdLibRequest:@{@"@type": @"getChat", @"chat_id": @((long long)chatId)} resolve:resolve reject:reject];
+    [self sendTdLibRequestWithRawResult:@{@"@type": @"getChat", @"chat_id": @((long long)chatId)}
+                                resolve:resolve reject:reject];
 }
 
 RCT_EXPORT_METHOD(openChat:(double)chatId
                   resolve:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject) {
     [self sendTdLibRequest:@{@"@type": @"openChat", @"chat_id": @((long long)chatId)} resolve:^(id result) {
-        // After opening, fetch the chat to return updated data
-        [self sendTdLibRequest:@{@"@type": @"getChat", @"chat_id": @((long long)chatId)} resolve:resolve reject:reject];
+        // After opening, fetch the chat to return updated data wrapped in {raw}
+        [self sendTdLibRequestWithRawResult:@{@"@type": @"getChat", @"chat_id": @((long long)chatId)}
+                                    resolve:resolve reject:reject];
     } reject:reject];
 }
 
@@ -369,7 +418,7 @@ RCT_EXPORT_METHOD(closeChat:(double)chatId
                   resolve:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject) {
     [self sendTdLibRequest:@{@"@type": @"closeChat", @"chat_id": @((long long)chatId)} resolve:^(id result) {
-        resolve(@"{\"success\":true}");
+        resolve(@{@"success": @YES});
     } reject:reject];
 }
 
@@ -391,19 +440,22 @@ RCT_EXPORT_METHOD(searchChats:(NSString *)query
 RCT_EXPORT_METHOD(joinChat:(double)chatId
                   resolve:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject) {
-    [self sendTdLibRequest:@{@"@type": @"joinChat", @"chat_id": @((long long)chatId)} resolve:resolve reject:reject];
+    [self sendTdLibRequestWithRawResult:@{@"@type": @"joinChat", @"chat_id": @((long long)chatId)}
+                                resolve:resolve reject:reject];
 }
 
 RCT_EXPORT_METHOD(leaveChat:(double)chatId
                   resolve:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject) {
-    [self sendTdLibRequest:@{@"@type": @"leaveChat", @"chat_id": @((long long)chatId)} resolve:resolve reject:reject];
+    [self sendTdLibRequestWithRawResult:@{@"@type": @"leaveChat", @"chat_id": @((long long)chatId)}
+                                resolve:resolve reject:reject];
 }
 
 RCT_EXPORT_METHOD(createPrivateChat:(double)userId
                   resolve:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject) {
-    [self sendTdLibRequest:@{@"@type": @"createPrivateChat", @"user_id": @((long long)userId), @"force": @NO} resolve:resolve reject:reject];
+    [self sendTdLibRequest:@{@"@type": @"createPrivateChat", @"user_id": @((long long)userId), @"force": @NO}
+                   resolve:resolve reject:reject];
 }
 
 RCT_EXPORT_METHOD(getChatMember:(double)chatId
@@ -418,13 +470,14 @@ RCT_EXPORT_METHOD(getChatMember:(double)chatId
             @"user_id": @((long long)userId)
         }
     };
-    [self sendTdLibRequest:request resolve:resolve reject:reject];
+    [self sendTdLibRequestWithRawResult:request resolve:resolve reject:reject];
 }
 
 RCT_EXPORT_METHOD(getSupergroup:(double)supergroupId
                   resolve:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject) {
-    [self sendTdLibRequest:@{@"@type": @"getSupergroup", @"supergroup_id": @((int)supergroupId)} resolve:resolve reject:reject];
+    [self sendTdLibRequestWithRawResult:@{@"@type": @"getSupergroup", @"supergroup_id": @((int)supergroupId)}
+                                resolve:resolve reject:reject];
 }
 
 // ==================== Chat List ====================
@@ -456,7 +509,6 @@ RCT_EXPORT_METHOD(getChats:(int)limit
         @"limit": @(limit)
     };
     [self sendTdLibRequest:request resolve:^(id result) {
-        // result is JSON string with chat_ids array
         NSData *data = [result dataUsingEncoding:NSUTF8StringEncoding];
         NSDictionary *dict = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
         NSArray *chatIds = dict[@"chat_ids"];
@@ -466,15 +518,20 @@ RCT_EXPORT_METHOD(getChats:(int)limit
             return;
         }
 
-        NSMutableArray *results = [NSMutableArray new];
+        NSUInteger count = chatIds.count;
+        NSMutableArray *results = [[NSMutableArray alloc] initWithCapacity:count];
+        for (NSUInteger i = 0; i < count; i++) {
+            [results addObject:[NSNull null]];
+        }
         dispatch_group_t group = dispatch_group_create();
 
-        for (NSNumber *chatId in chatIds) {
+        for (NSUInteger i = 0; i < count; i++) {
             dispatch_group_enter(group);
-            [self sendTdLibRequest:@{@"@type": @"getChat", @"chat_id": chatId}
+            NSUInteger index = i;
+            [self sendTdLibRequest:@{@"@type": @"getChat", @"chat_id": chatIds[i]}
                            resolve:^(id chatResult) {
                 @synchronized (results) {
-                    if (chatResult) [results addObject:chatResult];
+                    results[index] = chatResult ?: [NSNull null];
                 }
                 dispatch_group_leave(group);
             } reject:^(NSString *code, NSString *message, NSError *error) {
@@ -483,7 +540,13 @@ RCT_EXPORT_METHOD(getChats:(int)limit
         }
 
         dispatch_group_notify(group, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-            NSString *json = [NSString stringWithFormat:@"[%@]", [results componentsJoinedByString:@","]];
+            NSMutableArray *ordered = [NSMutableArray new];
+            for (id item in results) {
+                if (item != [NSNull null]) {
+                    [ordered addObject:item];
+                }
+            }
+            NSString *json = [NSString stringWithFormat:@"[%@]", [ordered componentsJoinedByString:@","]];
             resolve(json);
         });
     } reject:reject];
@@ -500,7 +563,7 @@ RCT_EXPORT_METHOD(getMessage:(double)chatId
         @"chat_id": @((long long)chatId),
         @"message_id": @((long long)messageId)
     };
-    [self sendTdLibRequest:request resolve:resolve reject:reject];
+    [self sendTdLibRequestWithRawResult:request resolve:resolve reject:reject];
 }
 
 RCT_EXPORT_METHOD(getChatHistory:(double)chatId
@@ -517,7 +580,25 @@ RCT_EXPORT_METHOD(getChatHistory:(double)chatId
         @"limit": @(limit),
         @"only_local": @NO
     };
-    [self sendTdLibRequest:request resolve:resolve reject:reject];
+    [self sendTdLibRequest:request resolve:^(id result) {
+        NSData *data = [result dataUsingEncoding:NSUTF8StringEncoding];
+        NSDictionary *dict = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+        NSArray *messages = dict[@"messages"];
+
+        if (!messages) {
+            reject(@"NO_MESSAGES", @"No messages returned", nil);
+            return;
+        }
+
+        NSMutableArray *resultArray = [NSMutableArray new];
+        for (NSDictionary *message in messages) {
+            NSData *msgData = [NSJSONSerialization dataWithJSONObject:message options:0 error:nil];
+            NSString *msgJson = [[NSString alloc] initWithData:msgData encoding:NSUTF8StringEncoding];
+            [resultArray addObject:@{@"raw_json": msgJson}];
+        }
+
+        resolve(resultArray);
+    } reject:reject];
 }
 
 RCT_EXPORT_METHOD(sendMessage:(double)chatId
@@ -535,7 +616,7 @@ RCT_EXPORT_METHOD(sendMessage:(double)chatId
             }
         }
     };
-    [self sendTdLibRequest:request resolve:resolve reject:reject];
+    [self sendTdLibRequestWithRawResult:request resolve:resolve reject:reject];
 }
 
 RCT_EXPORT_METHOD(viewMessages:(double)chatId
@@ -562,7 +643,7 @@ RCT_EXPORT_METHOD(getMessageThread:(double)chatId
         @"chat_id": @((long long)chatId),
         @"message_id": @((long long)messageId)
     };
-    [self sendTdLibRequest:request resolve:resolve reject:reject];
+    [self sendTdLibRequestWithRawResult:request resolve:resolve reject:reject];
 }
 
 RCT_EXPORT_METHOD(getMessageThreadHistory:(double)chatId
@@ -580,7 +661,7 @@ RCT_EXPORT_METHOD(getMessageThreadHistory:(double)chatId
         @"offset": @(offset),
         @"limit": @(MAX(1, limit))
     };
-    [self sendTdLibRequest:request resolve:resolve reject:reject];
+    [self sendTdLibRequestWithRawResult:request resolve:resolve reject:reject];
 }
 
 RCT_EXPORT_METHOD(getChatMessagePosition:(double)chatId
@@ -599,7 +680,16 @@ RCT_EXPORT_METHOD(getChatMessagePosition:(double)chatId
         request[@"message_topic"] = @{@"@type": @"messageTopicForum", @"forum_topic_id": @((int)threadId)};
     }
 
-    [self sendTdLibRequest:request resolve:resolve reject:reject];
+    [self sendTdLibRequest:request resolve:^(id result) {
+        NSData *data = [result dataUsingEncoding:NSUTF8StringEncoding];
+        NSDictionary *dict = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+
+        NSMutableDictionary *response = [@{@"raw": result ?: @""} mutableCopy];
+        if (dict[@"count"]) {
+            response[@"count"] = dict[@"count"];
+        }
+        resolve(response);
+    } reject:reject];
 }
 
 RCT_EXPORT_METHOD(getMessagesCompat:(double)chatId
@@ -714,7 +804,7 @@ RCT_EXPORT_METHOD(getAddedReactions:(double)chatId
         @"offset": @"",
         @"limit": @50
     };
-    [self sendTdLibRequest:request resolve:resolve reject:reject];
+    [self sendTdLibRequestWithRawResult:request resolve:resolve reject:reject];
 }
 
 // ==================== User Operations ====================
@@ -753,15 +843,20 @@ RCT_EXPORT_METHOD(getUsersCompat:(NSArray *)userIds
         return;
     }
 
-    NSMutableArray *results = [NSMutableArray new];
+    NSUInteger count = userIds.count;
+    NSMutableArray *results = [[NSMutableArray alloc] initWithCapacity:count];
+    for (NSUInteger i = 0; i < count; i++) {
+        [results addObject:[NSNull null]];
+    }
     dispatch_group_t group = dispatch_group_create();
 
-    for (NSNumber *userId in userIds) {
+    for (NSUInteger i = 0; i < count; i++) {
         dispatch_group_enter(group);
-        [self sendTdLibRequest:@{@"@type": @"getUser", @"user_id": @([userId longLongValue])}
+        NSUInteger index = i;
+        [self sendTdLibRequest:@{@"@type": @"getUser", @"user_id": @([userIds[i] longLongValue])}
                        resolve:^(id result) {
             @synchronized (results) {
-                if (result) [results addObject:result];
+                if (result) results[index] = result;
             }
             dispatch_group_leave(group);
         } reject:^(NSString *code, NSString *message, NSError *error) {
@@ -770,7 +865,13 @@ RCT_EXPORT_METHOD(getUsersCompat:(NSArray *)userIds
     }
 
     dispatch_group_notify(group, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        NSString *json = [NSString stringWithFormat:@"[%@]", [results componentsJoinedByString:@","]];
+        NSMutableArray *ordered = [NSMutableArray new];
+        for (id item in results) {
+            if (item != [NSNull null]) {
+                [ordered addObject:item];
+            }
+        }
+        NSString *json = [NSString stringWithFormat:@"[%@]", [ordered componentsJoinedByString:@","]];
         resolve(json);
     });
 }
@@ -788,7 +889,7 @@ RCT_EXPORT_METHOD(downloadFile:(int)fileId
         @"limit": @0,
         @"synchronous": @YES
     };
-    [self sendTdLibRequest:request resolve:resolve reject:reject];
+    [self sendTdLibRequestWithRawResult:request resolve:resolve reject:reject];
 }
 
 RCT_EXPORT_METHOD(downloadFileByRemoteId:(NSString *)remoteId
@@ -811,7 +912,7 @@ RCT_EXPORT_METHOD(downloadFileByRemoteId:(NSString *)remoteId
                 @"limit": @0,
                 @"synchronous": @YES
             };
-            [self sendTdLibRequest:downloadRequest resolve:resolve reject:reject];
+            [self sendTdLibRequestWithRawResult:downloadRequest resolve:resolve reject:reject];
         } else {
             reject(@"RESOLVE_FAILED", @"Could not resolve file by remote id", nil);
         }
@@ -827,7 +928,7 @@ RCT_EXPORT_METHOD(cancelDownloadFile:(int)fileId
         @"file_id": @(fileId),
         @"only_if_pending": @(onlyIfPending)
     };
-    [self sendTdLibRequest:request resolve:resolve reject:reject];
+    [self sendTdLibRequestWithRawResult:request resolve:resolve reject:reject];
 }
 
 RCT_EXPORT_METHOD(cancelDownloadByRemoteId:(NSString *)remoteFileId
@@ -848,7 +949,13 @@ RCT_EXPORT_METHOD(cancelDownloadByRemoteId:(NSString *)remoteFileId
                 @"file_id": fileId,
                 @"only_if_pending": @(onlyIfPending)
             };
-            [self sendTdLibRequest:cancelRequest resolve:resolve reject:reject];
+            [self sendTdLibRequest:cancelRequest resolve:^(id cancelResult) {
+                resolve(@{
+                    @"raw": cancelResult ?: @"",
+                    @"tdFileId": fileId,
+                    @"remoteFileId": remoteFileId
+                });
+            } reject:reject];
         } else {
             reject(@"NO_TD_FILE_ID", @"GetRemoteFile returned file with id=0; cannot cancel", nil);
         }
@@ -858,7 +965,8 @@ RCT_EXPORT_METHOD(cancelDownloadByRemoteId:(NSString *)remoteFileId
 RCT_EXPORT_METHOD(getFile:(int)fileId
                   resolve:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject) {
-    [self sendTdLibRequest:@{@"@type": @"getFile", @"file_id": @(fileId)} resolve:resolve reject:reject];
+    [self sendTdLibRequestWithRawResult:@{@"@type": @"getFile", @"file_id": @(fileId)}
+                                resolve:resolve reject:reject];
 }
 
 // ==================== Options ====================
