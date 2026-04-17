@@ -2,6 +2,17 @@ name: Release
 
 on:
   workflow_dispatch:
+    inputs:
+      release_type:
+        description: "Override version bump (leave blank for conventional-commits auto)"
+        required: false
+        type: choice
+        default: ""
+        options:
+          - ""
+          - patch
+          - minor
+          - major
   push:
     branches:
       - master
@@ -24,6 +35,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           token: ${{ steps.generate_token.outputs.token }}
+          # Full history + tags — release-it / conventional-recommended-bump
+          # needs every commit since the last tag to determine the right bump.
+          fetch-depth: 0
+          fetch-tags: true
 
       # Node 24 ships with npm 11+, which supports Trusted Publishing
       # (--provenance + OIDC). Avoids the npm self-update bug on Node 22.
@@ -40,7 +55,12 @@ jobs:
       - run: yarn install --frozen-lockfile
 
       - name: Release
-        run: yarn release --ci
+        run: |
+          if [ -n "${{ inputs.release_type }}" ]; then
+            yarn release --ci --increment=${{ inputs.release_type }}
+          else
+            yarn release --ci
+          fi
         env:
           GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
           # No NPM_TOKEN — Trusted Publishing exchanges the GH OIDC token for npm auth automatically.
