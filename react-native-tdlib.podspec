@@ -9,7 +9,8 @@ Pod::Spec.new do |s|
   s.source       = { :path => "." }
   s.source_files = "ios/**/*.h", "ios/**/*.mm"
   s.public_header_files = "ios/**/*.h"
-  s.vendored_libraries = "ios/Libraries/tdjson/lib/libtdjson.dylib"
+  # Ship TDLib as an xcframework so both device and simulator slices are linked.
+  s.vendored_frameworks = "ios/Libraries/tdjson/libtdjson.xcframework"
   s.pod_target_xcconfig = {
     "HEADER_SEARCH_PATHS" => "\"$(PODS_TARGET_SRCROOT)/ios/Libraries/tdjson/include\""
   }

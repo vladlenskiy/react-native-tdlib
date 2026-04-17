@@ -33,6 +33,17 @@
   ],
   "author": "Vladlen Kaveev",
   "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/vladlenskiy/react-native-tdlib/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vladlenskiy/react-native-tdlib.git"
+  },
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/vladlenskiy"
+  },
   "devDependencies": {
     "@babel/core": "^7.29.0",
     "@babel/preset-env": "^7.29.2",

@@ -42,7 +42,8 @@ export default {
   // Message Operations
   getMessage: TdLibModule.getMessage,
   getChatHistory: TdLibModule.getChatHistory,
-  sendMessage: TdLibModule.sendMessage,
+  sendMessage: (chatId, text, replyToMessageId) =>
+    TdLibModule.sendMessage(chatId, text, replyToMessageId ?? 0),
   getMessagesCompat: TdLibModule.getMessagesCompat,
   viewMessages: TdLibModule.viewMessages,
   getChatMessagePosition: TdLibModule.getChatMessagePosition,

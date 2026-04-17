@@ -1,0 +1,9 @@
+framework module libtdjson {
+  umbrella header "td/telegram/td_json_client.h"
+  header "td/telegram/td_api.h"
+  header "td/telegram/td_log.h"
+  header "td/telegram/Client.h"
+  header "td/telegram/Log.h"
+  export *
+  module * { export * }
+}

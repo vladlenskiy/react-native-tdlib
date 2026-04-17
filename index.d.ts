@@ -129,7 +129,11 @@ declare module "react-native-tdlib" {
     limit: number,
     offset: number,
   ): Promise<TdChatHistoryItem[]>;
-  export function sendMessage(chatId: number, text: string): Promise<TdRawResult>;
+  export function sendMessage(
+    chatId: number,
+    text: string,
+    replyToMessageId?: number,
+  ): Promise<TdRawResult>;
   export function getMessagesCompat(chatId: number, messageIds: number[]): Promise<string>;
   export function viewMessages(
     chatId: number,

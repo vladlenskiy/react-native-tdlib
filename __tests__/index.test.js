@@ -72,7 +72,7 @@ describe('react-native-tdlib', () => {
       const expectedMethods = Object.keys(mockMethods);
       for (const method of expectedMethods) {
         expect(TdLib).toHaveProperty(method);
-        expect(TdLib[method]).toBe(mockMethods[method]);
+        expect(typeof TdLib[method]).toBe('function');
       }
     });
 
@@ -133,7 +133,12 @@ describe('react-native-tdlib', () => {
 
     it('delegates sendMessage with chatId and text', () => {
       TdLib.sendMessage(12345, 'Hello');
-      expect(mockMethods.sendMessage).toHaveBeenCalledWith(12345, 'Hello');
+      expect(mockMethods.sendMessage).toHaveBeenCalledWith(12345, 'Hello', 0);
+    });
+
+    it('delegates sendMessage with replyToMessageId', () => {
+      TdLib.sendMessage(12345, 'Hi', 555);
+      expect(mockMethods.sendMessage).toHaveBeenCalledWith(12345, 'Hi', 555);
     });
 
     it('delegates getOption with name', () => {
