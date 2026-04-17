@@ -10,6 +10,9 @@ jobs:
   release:
     if: github.event.head_commit.author.email != 'VladlenskiyReleaseBot@users.noreply.github.com'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write       # push the release commit + tag
+      id-token: write       # OIDC for npm Trusted Publishing
     steps:
       - name: Generate GitHub App token
         id: generate_token
@@ -18,14 +21,18 @@ jobs:
           application_id: ${{ secrets.APP_ID }}
           application_private_key: ${{ secrets.APP_PRIVATE_KEY }}
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           token: ${{ steps.generate_token.outputs.token }}
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
+
+      # Trusted Publishing requires npm >= 11.5.1; pin a current one.
+      - name: Update npm
+        run: npm i -g npm@latest
 
       - name: Set git user
         run: |
@@ -33,14 +40,12 @@ jobs:
           git config --global user.email "VladlenskiyReleaseBot@users.noreply.github.com"
 
       - run: yarn install --frozen-lockfile
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Release
         run: yarn release --ci
         env:
           GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # No NPM_TOKEN — Trusted Publishing exchanges the GH OIDC token for npm auth automatically.
 
       - name: Push changes with App token
         env:

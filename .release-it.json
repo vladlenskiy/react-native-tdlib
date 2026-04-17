@@ -6,14 +6,19 @@
     "push": false
   },
   "npm": {
-    "publish": true
+    "publish": true,
+    "publishArgs": ["--provenance", "--access", "public"]
   },
   "github": {
     "release": true
   },
   "plugins": {
     "@release-it/conventional-changelog": {
-      "preset": "conventionalcommits"
+      "preset": {
+        "name": "conventionalcommits"
+      },
+      "infile": "CHANGELOG.md",
+      "strictSemVer": true
     }
   }
 }
