@@ -25,14 +25,12 @@ jobs:
         with:
           token: ${{ steps.generate_token.outputs.token }}
 
+      # Node 24 ships with npm 11+, which supports Trusted Publishing
+      # (--provenance + OIDC). Avoids the npm self-update bug on Node 22.
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
-
-      # Trusted Publishing requires npm >= 11.5.1; pin a current one.
-      - name: Update npm
-        run: npm i -g npm@latest
 
       - name: Set git user
         run: |
