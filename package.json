@@ -33,20 +33,44 @@
   ],
   "author": "Vladlen Kaveev",
   "license": "MIT",
-  "dependencies": {},
+  "bugs": {
+    "url": "https://github.com/vladlenskiy/react-native-tdlib/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vladlenskiy/react-native-tdlib.git"
+  },
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/vladlenskiy"
+  },
   "devDependencies": {
+    "@babel/core": "^7.29.0",
+    "@babel/preset-env": "^7.29.2",
+    "@release-it/conventional-changelog": "^10.0.1",
     "@types/react": "*",
     "@types/react-native": "*",
-    "typescript": "^3.8.3",
+    "babel-jest": "^29.7.0",
+    "jest": "^29.7.0",
     "release-it": "^19.0.3",
-    "@release-it/conventional-changelog": "^10.0.1"
+    "typescript": "^3.8.3"
   },
   "peerDependencies": {
     "react": "*",
     "react-native": "*"
   },
   "scripts": {
+    "test": "jest",
     "release": "release-it"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "transform": {
+      "^.+\\.js$": "babel-jest"
+    },
+    "modulePathIgnorePatterns": [
+      "<rootDir>/example/"
+    ]
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org"

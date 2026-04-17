@@ -1,138 +1,123 @@
-# React Native TDLib
+<p align="center">
+  <img src="./docs/images/logo.png" alt="react-native-tdlib" width="160" />
+</p>
 
-[![NPM Version](https://img.shields.io/npm/v/react-native-tdlib.svg?style=flat-square)](https://www.npmjs.com/package/react-native-tdlib)
-[![License](https://img.shields.io/npm/l/react-native-tdlib.svg?style=flat-square)](./LICENSE)
-[![npm Downloads](https://img.shields.io/npm/dm/react-native-tdlib.svg?style=flat-square)](https://www.npmjs.com/package/react-native-tdlib)
+<h1 align="center">react-native-tdlib</h1>
 
-⚠️ **Note:** This library is currently under development, and contributions are welcome! If you'd like to help improve the library, feel free to submit issues or pull requests.
+<p align="center">
+  The fastest way to build a real Telegram client in React Native.<br />
+  Official <a href="https://github.com/tdlib/td">TDLib</a> under the hood, prebuilt binaries, one API on iOS and Android.
+</p>
 
-`react-native-tdlib` is a React Native bridge for the [TDLib (Telegram Database Library)](https://github.com/tdlib/td) that allows developers to interact with Telegram's API seamlessly in their React Native applications.
+<p align="center">
+  <a href="https://www.npmjs.com/package/react-native-tdlib"><img src="https://img.shields.io/npm/v/react-native-tdlib.svg?style=flat-square" alt="npm" /></a>
+  <a href="https://www.npmjs.com/package/react-native-tdlib"><img src="https://img.shields.io/npm/dm/react-native-tdlib.svg?style=flat-square" alt="downloads" /></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/npm/l/react-native-tdlib.svg?style=flat-square" alt="license" /></a>
+  <img src="https://img.shields.io/badge/platform-ios%20%7C%20android-lightgrey?style=flat-square" alt="platforms" />
+</p>
 
-## Installation
+<p align="center">
+  <img src="./docs/images/hero.gif" alt="demo" width="720" />
+</p>
+
+---
+
+## Why
+
+Building a Telegram client should not start with an hour-long TDLib compile. This library ships **prebuilt** TDLib binaries for iOS (`xcframework`, device + simulator) and Android (`arm64-v8a`, `armeabi-v7a`, `x86_64`), wraps the whole API in a single RN module, and streams every update to JS through `NativeEventEmitter`.
+
+- 🚀 **51 first-class methods** — auth, chats, messages, reactions, files, options, users.
+- 🔄 **Real-time updates** — new messages, typing, read receipts, download progress, reactions.
+- 🧩 **Cross-platform parity** — iOS and Android emit the same TDLib JSON shape. Write once.
+- 🟦 **Fully typed** — `.d.ts` covers every method, event and result.
+- 📦 **Zero native setup** — no `cmake`, no `brew install`. `pod install` and go.
+- 🎬 **Ships with a Telegram-like example app** — auth wizard, chat list, message view, reactions, reply, typing.
+
+## Install
 
 ```bash
 npm install react-native-tdlib
-# or
-yarn add react-native-tdlib
+cd ios && pod install
 ```
----
 
-## Available Methods
+Requires React Native ≥ 0.60 (autolinking), iOS ≥ 11, Android `minSdk` ≥ 21.
 
-The library provides the following methods for interacting with Telegram's TDLib. These are grouped into **Base API** and **High-Level API** for easier understanding.
+## Hello, Telegram
 
----
+```ts
+import TdLib from 'react-native-tdlib';
+import {NativeEventEmitter, NativeModules} from 'react-native';
 
-### High-Level API
+const emitter = new NativeEventEmitter(NativeModules.TdLibModule);
 
-These methods simplify common tasks and abstract away low-level details.
+// 1) Start TDLib
+await TdLib.startTdLib({api_id: 12345, api_hash: 'your_hash'});
 
-| Method                 | Description                                                |
-|------------------------|------------------------------------------------------------|
-| **startTdLib**          | Starts the TDLib service with required parameters.         |
-| **login**               | Initiates login with a phone number.                      |
-| **verifyPhoneNumber**   | Verifies a phone number using an OTP code.                |
-| **verifyPassword**      | Verifies the account password for two-factor authentication. |
-| **getAuthorizationState** | Fetches the current authorization state.               |
-| **getProfile**          | Retrieves the profile information of the logged-in user.  |
-| **logout**              | Logs out of the current session.                          |
-
----
-
-### Base API (Not recommended)
-
-These methods offer low-level access to TDLib's functionalities.
-
-| Method                 | Description                                                |
-|------------------------|------------------------------------------------------------|
-| **td_json_client_create** | Creates a new TDLib client instance.                     |
-| **td_json_client_execute** | Synchronously executes a TDLib request.                |
-| **td_json_client_send** | Sends a TDLib request asynchronously.                     |
-| **td_json_client_receive** | Receives a TDLib response with a timeout.              |
-
----
-
-### Example Usage
-
-#### **High-Level API Example**
-```javascript
-// Start TDLib
-await TdLib.startTdLib({
-  api_id: 123456,
-  api_hash: 'your_api_hash'
+// 2) Listen for everything
+emitter.addListener('tdlib-update', e => {
+  if (e.type === 'updateNewMessage') {
+    console.log('📨', JSON.parse(e.raw).message);
+  }
 });
 
-// Login with phone number
-await TdLib.login({
-  countrycode: '+1',
-  phoneNumber: '1234567890'
-});
+// 3) Log in (drive via updateAuthorizationState — see docs)
+await TdLib.login({countrycode: '+1', phoneNumber: '5551234567'});
+await TdLib.verifyPhoneNumber('12345');
 
-// Verify phone number
-await TdLib.verifyPhoneNumber('12345'); // Replace with the OTP you received
-
-// Verify password (Optional)
-await TdLib.verifyPassword('password');
-
-// Get current profile
-const profile = await TdLib.getProfile();
-console.log(profile);
+// 4) Load chats, send a message
+await TdLib.loadChats(25);
+const chats = JSON.parse(await TdLib.getChats(25));
+await TdLib.sendMessage(chats[0].id, 'Hello from React Native!');
 ```
 
-#### **Base API Example**
-```javascript
-const tdLibParameters = {
-    '@type': 'setTdlibParameters',
-    parameters: {
-        database_directory: 'tdlib',
-        use_message_database: true,
-        use_secret_chats: true,
-        api_id: 123456, // Replace with your API ID
-        api_hash: 'your_api_hash', // Replace with your API Hash
-        system_language_code: 'en',
-        device_model: 'React Native',
-        system_version: '1.0',
-        application_version: '1.0',
-        enable_storage_optimizer: true,
-    },
-};
+## Example app
 
-// Send TDLib parameters
-TdLib.td_json_client_send(tdLibParameters);
-```
----
-## Features
-- Direct communication with TDLib for Telegram API interactions.
-- Cross-platform support for iOS and Android.
-- Easy-to-use methods for common TDLib operations, such as setting parameters, sending requests, and receiving updates.
----
-## 📝 TODO
-- [ ] **Move Prebuilt Library out of Repository**
-- [ ] **Complete Android Method Implementations**
-- [ ] **Improve Documentation**
-- [ ] **Make a list of methods to implement**
----
+A full Telegram-like reference client ships under [`example/`](./example): login wizard, chat list with live updates, chat view with reactions, reply, typing indicator, photo previews, pagination.
 
-## Example Project
+<p align="center">
+  <img src="./docs/images/auth.png" width="220" />
+  <img src="./docs/images/chats.png" width="220" />
+  <img src="./docs/images/chat.png" width="220" />
+</p>
 
-This repository includes an example directory with a fully functional React Native project that demonstrates how to use the library. You can explore the example project to see how the library is integrated and used.
-
-### Running the Example
-
-1. Clone the repository:
 ```bash
 git clone https://github.com/vladlenskiy/react-native-tdlib.git
-cd react-native-tdlib/example
-```
-2. Install dependencies:
-```bash
-npm install
-# or
-yarn install
+cd react-native-tdlib/example && npm install
+cd ios && pod install && cd ..
+npx react-native run-ios       # or run-android
 ```
 
-3.	Run the app:
-```bash
-npx react-native run-android   # For Android
-npx react-native run-ios       # For iOS
-```
+## Documentation
+
+- **[Getting Started →](./docs/getting-started.md)** — install, auth flow, first chat.
+- **[API Reference →](./docs/api-reference.md)** — all 51 methods, grouped.
+- **[Cookbook →](./docs/cookbook.md)** — practical recipes (messages, reactions, files, options, typing).
+- **[Events →](./docs/events.md)** — `tdlib-update` stream, update types cheatsheet.
+- **[Platform Parity →](./docs/platform-parity.md)** — how iOS and Android stay in sync.
+
+## Contributing
+
+Pull requests welcome. See [CONTRIBUTING.md](./docs/contributing.md) for the local workflow.
+
+Before submitting: `npm test` must pass and the example app must build on both platforms.
+
+## Community & support
+
+- 🐛 **Bugs / feature requests** → [GitHub Issues](https://github.com/vladlenskiy/react-native-tdlib/issues)
+- 💬 **Questions / discussion** → [GitHub Discussions](https://github.com/vladlenskiy/react-native-tdlib/discussions)
+- 🐦 **Updates** → [@vladlensk1y](https://x.com/vladlensk1y) on Twitter/X
+- ✉️ **Private** → vkaveev@outlook.com
+
+## Sponsor this project
+
+Open source takes time. If this library saves you a week of wrestling with `cmake` and TDLib internals, consider supporting development:
+
+<p>
+  <a href="https://github.com/sponsors/vladlenskiy"><img src="https://img.shields.io/badge/Sponsor-EA4AAA?style=for-the-badge&logo=github-sponsors&logoColor=white" alt="Sponsor on GitHub" /></a>
+</p>
+
+Sponsors are listed in the [`CHANGELOG`](./CHANGELOG.md) and on the repository homepage.
+
+## License
+
+[MIT](./LICENSE) © Vladlen Kaveev and contributors. TDLib itself is licensed under the Boost Software License.

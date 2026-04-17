@@ -37,7 +37,26 @@ project.xcworkspace
 local.properties
 *.iml
 
+# Gradle build output (library module may get built in-place when the example app compiles)
+android/build/
+android/.cxx/
+android/app/build/
+example/android/build/
+example/android/app/build/
+example/android/.gradle/
+
+# iOS / CocoaPods
+example/ios/Pods/
+example/ios/build/
+
+# Generated framework-build scratch dir from scripts
+ios/Libraries/tdjson/framework-build/
+
 # BUCK
 buck-out/
 \.buckd/
 *.keystore
+
+# Logs / tmp
+*.log
+.DS_Store
