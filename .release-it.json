@@ -3,15 +3,17 @@
     "commitMessage": "chore(release): ${version}",
     "tagName": "v${version}",
     "requireCleanWorkingDir": true,
-    "push": false
+    "push": true,
+    "tagAnnotation": "Release ${version}"
   },
   "npm": {
-    "publish": true,
-    "skipChecks": true,
-    "publishArgs": ["--provenance", "--access", "public"]
+    "publish": false
   },
   "github": {
-    "release": true
+    "release": false
+  },
+  "hooks": {
+    "after:release": "echo \"\\nTag v${version} pushed. CI will publish to npm and create the GitHub Release.\\nFollow the run at https://github.com/vladlenskiy/react-native-tdlib/actions\""
   },
   "plugins": {
     "@release-it/conventional-changelog": {

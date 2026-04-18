@@ -1,80 +1,58 @@
 name: Release
 
+# Triggered by a version tag pushed by `npm run release` (which uses release-it).
+# A maintainer can also fire this workflow manually from the Actions UI to
+# re-publish an existing tag (recovery after a failed run).
 on:
   workflow_dispatch:
     inputs:
-      release_type:
-        description: "Override version bump (leave blank for conventional-commits auto)"
+      tag:
+        description: "Tag to publish (e.g. v2.0.1). Defaults to the latest tag."
         required: false
-        type: choice
-        default: ""
-        options:
-          - ""
-          - patch
-          - minor
-          - major
+        type: string
   push:
-    branches:
-      - master
-    # Don't trigger a release run for pure documentation / image tweaks.
-    # If you push README + code together, the run still fires (correct behaviour).
-    paths-ignore:
-      - '**/*.md'
-      - 'docs/**'
-      - '.github/FUNDING.yml'
+    tags:
+      - 'v*'
 
 jobs:
   release:
-    if: |
-      github.event.head_commit.author.email != 'VladlenskiyReleaseBot@users.noreply.github.com'
-      && !contains(github.event.head_commit.message, '[skip release]')
     runs-on: ubuntu-latest
     permissions:
-      contents: write       # push the release commit + tag
+      contents: write       # create the GitHub Release
       id-token: write       # OIDC for npm Trusted Publishing
     steps:
-      - name: Generate GitHub App token
-        id: generate_token
-        uses: peter-murray/workflow-application-token-action@v2
-        with:
-          application_id: ${{ secrets.APP_ID }}
-          application_private_key: ${{ secrets.APP_PRIVATE_KEY }}
+      - name: Resolve tag
+        id: tag
+        run: |
+          if [ -n "${{ inputs.tag }}" ]; then
+            echo "ref=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
 
       - uses: actions/checkout@v4
         with:
-          token: ${{ steps.generate_token.outputs.token }}
-          # Full history + tags — release-it / conventional-recommended-bump
-          # needs every commit since the last tag to determine the right bump.
+          ref: ${{ steps.tag.outputs.ref }}
           fetch-depth: 0
           fetch-tags: true
 
-      # Node 24 ships with npm 11+, which supports Trusted Publishing
-      # (--provenance + OIDC). Avoids the npm self-update bug on Node 22.
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Set git user
-        run: |
-          git config --global user.name "Vladlenskiy Release Bot"
-          git config --global user.email "VladlenskiyReleaseBot@users.noreply.github.com"
-
       - run: yarn install --frozen-lockfile
 
-      - name: Release
-        run: |
-          if [ -n "${{ inputs.release_type }}" ]; then
-            yarn release --ci --increment=${{ inputs.release_type }}
-          else
-            yarn release --ci
-          fi
-        env:
-          GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
-          # No NPM_TOKEN — Trusted Publishing exchanges the GH OIDC token for npm auth automatically.
+      - run: npm test
 
-      - name: Push changes with App token
+      - name: Publish to npm (Trusted Publishing + provenance)
+        run: npm publish --provenance --access public
+
+      - name: Create GitHub Release
         env:
-          GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          git push https://x-access-token:${GITHUB_TOKEN}@github.com/vladlenskiy/react-native-tdlib.git HEAD:master --follow-tags
+          gh release create "${{ steps.tag.outputs.ref }}" \
+            --title "${{ steps.tag.outputs.ref }}" \
+            --generate-notes \
+            --verify-tag
