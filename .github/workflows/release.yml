@@ -16,10 +16,18 @@ on:
   push:
     branches:
       - master
+    # Don't trigger a release run for pure documentation / image tweaks.
+    # If you push README + code together, the run still fires (correct behaviour).
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - '.github/FUNDING.yml'
 
 jobs:
   release:
-    if: github.event.head_commit.author.email != 'VladlenskiyReleaseBot@users.noreply.github.com'
+    if: |
+      github.event.head_commit.author.email != 'VladlenskiyReleaseBot@users.noreply.github.com'
+      && !contains(github.event.head_commit.message, '[skip release]')
     runs-on: ubuntu-latest
     permissions:
       contents: write       # push the release commit + tag
