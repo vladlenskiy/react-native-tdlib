@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./docs/images/header.png" alt="react-native-tdlib" width="900" height="400" />
+  <img src="./docs/images/header.png" alt="react-native-tdlib" width="900" />
 </p>
 
 <p align="center">
