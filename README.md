@@ -2,8 +2,6 @@
   <img src="./docs/images/header.png" alt="react-native-tdlib" width="900" />
 </p>
 
-<h1 align="center">react-native-tdlib</h1>
-
 <p align="center">
   The fastest way to build a real Telegram client in React Native.<br />
   Official <a href="https://github.com/tdlib/td">TDLib</a> under the hood, prebuilt binaries, one API on iOS and Android.
