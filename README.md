@@ -68,6 +68,10 @@ await TdLib.sendMessage(chats[0].id, 'Hello from React Native!');
 
 A full Telegram-like reference client ships under [`example/`](./example): login wizard, chat list with live updates, chat view with reactions, reply, typing indicator, photo previews, pagination.
 
+<p align="center">
+  <img src="./docs/images/example.png" alt="Example app screenshots" width="720" />
+</p>
+
 ```bash
 git clone https://github.com/vladlenskiy/react-native-tdlib.git
 cd react-native-tdlib/example && npm install
