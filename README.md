@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./docs/images/header.png" alt="react-native-tdlib" width="600" />
+  <img src="./docs/images/header.png" alt="react-native-tdlib" width="900" height="400" />
 </p>
 
 <p align="center">
@@ -16,7 +16,7 @@
 
 <p align="center">
   <a href="./example">
-    <img src="./docs/images/example.png" alt="Example app — login, chat list, photo chat, message input" width="780" />
+    <img src="./docs/images/example.jpg" alt="Example app — login, chat list, photo chat, message input" width="780" />
   </a>
 </p>
 
