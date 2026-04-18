@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./docs/images/logo.png" alt="react-native-tdlib" width="160" />
+  <img src="./docs/images/header.png" alt="react-native-tdlib" width="900" />
 </p>
 
 <h1 align="center">react-native-tdlib</h1>
@@ -14,10 +14,6 @@
   <a href="https://www.npmjs.com/package/react-native-tdlib"><img src="https://img.shields.io/npm/dm/react-native-tdlib.svg?style=flat-square" alt="downloads" /></a>
   <a href="./LICENSE"><img src="https://img.shields.io/npm/l/react-native-tdlib.svg?style=flat-square" alt="license" /></a>
   <img src="https://img.shields.io/badge/platform-ios%20%7C%20android-lightgrey?style=flat-square" alt="platforms" />
-</p>
-
-<p align="center">
-  <img src="./docs/images/hero.gif" alt="demo" width="720" />
 </p>
 
 ---
@@ -73,12 +69,6 @@ await TdLib.sendMessage(chats[0].id, 'Hello from React Native!');
 ## Example app
 
 A full Telegram-like reference client ships under [`example/`](./example): login wizard, chat list with live updates, chat view with reactions, reply, typing indicator, photo previews, pagination.
-
-<p align="center">
-  <img src="./docs/images/auth.png" width="220" />
-  <img src="./docs/images/chats.png" width="220" />
-  <img src="./docs/images/chat.png" width="220" />
-</p>
 
 ```bash
 git clone https://github.com/vladlenskiy/react-native-tdlib.git
