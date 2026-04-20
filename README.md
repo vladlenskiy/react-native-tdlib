@@ -16,7 +16,7 @@
 
 <p align="center">
   <a href="./example">
-    <img src="./docs/images/example.gif" alt="Example app demo — login, chat list, messaging, reactions, typing" width="780" />
+    <img src="./docs/images/example.gif" alt="Example app demo — login, chat list, messaging, reactions, typing" width="900" />
   </a>
 </p>
 
