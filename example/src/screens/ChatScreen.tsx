@@ -20,6 +20,7 @@ import {
 import TdLib from 'react-native-tdlib';
 import ChatAvatar from '../components/ChatAvatar';
 import MessagePhoto from '../components/MessagePhoto';
+import TypingDots from '../components/TypingDots';
 import {colors, formatTime} from '../theme';
 import {safeJsonParse, useTdUpdate} from '../tdlib';
 import {ChatSummary} from './ChatsScreen';
@@ -79,6 +80,9 @@ const ChatScreen: React.FC<Props> = ({chat, meId, onBack}) => {
   const [info, setInfo] = useState<ChatInfo | null>(null);
 
   const [typingUserIds, setTypingUserIds] = useState<number[]>([]);
+  const [lastReadOutboxId, setLastReadOutboxId] = useState<number>(
+    (chat as any).last_read_outbox_message_id ?? 0,
+  );
 
   const listRef = useRef<FlatList<Message>>(null);
   const viewedIdsRef = useRef<Set<number>>(new Set());
@@ -178,6 +182,12 @@ const ChatScreen: React.FC<Props> = ({chat, meId, onBack}) => {
     setMessages(prev =>
       prev.map(m => (m.id === mid ? {...m, content: newContent} : m)),
     );
+  });
+
+  useTdUpdate('updateChatReadOutbox', data => {
+    if (data?.chat_id !== chat.id) return;
+    const id = data?.last_read_outbox_message_id;
+    if (typeof id === 'number') setLastReadOutboxId(id);
   });
 
   useTdUpdate('updateChatAction', data => {
@@ -353,7 +363,10 @@ const ChatScreen: React.FC<Props> = ({chat, meId, onBack}) => {
               ))}
             </View>
           )}
-          <Text style={styles.bubbleTime}>{formatTime(item.date)}</Text>
+          <View style={styles.bubbleMeta}>
+            <Text style={styles.bubbleTime}>{formatTime(item.date)}</Text>
+            {own && <Ticks state={sendingState(item, lastReadOutboxId)} />}
+          </View>
         </Pressable>
       </View>
     );
@@ -373,9 +386,18 @@ const ChatScreen: React.FC<Props> = ({chat, meId, onBack}) => {
             <Text style={styles.headerTitle} numberOfLines={1}>
               {chat.title}
             </Text>
-            <Text style={styles.headerSubtitle} numberOfLines={1}>
-              {typingUserIds.length > 0 ? 'typing…' : 'tap for info'}
-            </Text>
+            {typingUserIds.length > 0 ? (
+              <View style={styles.headerTypingRow}>
+                <Text style={[styles.headerSubtitle, styles.headerTypingLabel]}>
+                  typing
+                </Text>
+                <TypingDots color={colors.primary} />
+              </View>
+            ) : (
+              <Text style={styles.headerSubtitle} numberOfLines={1}>
+                tap for info
+              </Text>
+            )}
           </View>
         </TouchableOpacity>
       </View>
@@ -390,6 +412,7 @@ const ChatScreen: React.FC<Props> = ({chat, meId, onBack}) => {
           data={messages}
           keyExtractor={item => String(item.id)}
           renderItem={renderItem}
+          extraData={lastReadOutboxId}
           inverted
           contentContainerStyle={styles.listContent}
           onEndReached={loadOlder}
@@ -542,6 +565,30 @@ const ChatScreen: React.FC<Props> = ({chat, meId, onBack}) => {
   );
 };
 
+type TickState = 'pending' | 'sent' | 'read';
+
+function sendingState(msg: Message, lastReadOutboxId: number): TickState {
+  const ss = (msg as any).sending_state;
+  if (ss?.['@type'] === 'messageSendingStatePending') return 'pending';
+  if (msg.id <= lastReadOutboxId) return 'read';
+  return 'sent';
+}
+
+const Ticks: React.FC<{state: TickState}> = ({state}) => {
+  if (state === 'pending') {
+    return <Text style={styles.tickPending}>⏳</Text>;
+  }
+  return (
+    <Text
+      style={[
+        styles.ticks,
+        state === 'read' ? styles.ticksRead : styles.ticksSent,
+      ]}>
+      {state === 'read' ? '✓✓' : '✓'}
+    </Text>
+  );
+};
+
 function describeType(t: any): string {
   if (!t) return '';
   switch (t['@type']) {
@@ -618,7 +665,7 @@ function renderContent(content: any): string {
 const styles = StyleSheet.create({
   container: {flex: 1, backgroundColor: colors.surface},
   header: {
-    paddingTop: 50,
+    paddingTop: 10,
     paddingBottom: 10,
     paddingHorizontal: 12,
     backgroundColor: colors.background,
@@ -633,6 +680,8 @@ const styles = StyleSheet.create({
   headerBody: {flex: 1, marginLeft: 10},
   headerTitle: {fontSize: 16, fontWeight: '600', color: colors.textPrimary},
   headerSubtitle: {fontSize: 12, color: colors.textSecondary, marginTop: 2},
+  headerTypingRow: {flexDirection: 'row', alignItems: 'center', marginTop: 4},
+  headerTypingLabel: {color: colors.primary, marginRight: 6},
 
   center: {flex: 1, alignItems: 'center', justifyContent: 'center'},
   listContent: {paddingHorizontal: 10, paddingVertical: 10},
@@ -657,12 +706,17 @@ const styles = StyleSheet.create({
   bubbleOther: {backgroundColor: colors.bubbleOther, borderBottomLeftRadius: 4},
   bubblePhoto: {padding: 4},
   bubbleText: {fontSize: 15, color: colors.textPrimary, lineHeight: 20},
-  bubbleTime: {
-    fontSize: 10,
-    color: colors.textTertiary,
+  bubbleMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
     alignSelf: 'flex-end',
     marginTop: 2,
   },
+  bubbleTime: {fontSize: 10, color: colors.textTertiary},
+  ticks: {fontSize: 11, marginLeft: 4, lineHeight: 12, fontWeight: '700'},
+  ticksSent: {color: colors.textTertiary},
+  ticksRead: {color: colors.primary},
+  tickPending: {fontSize: 10, marginLeft: 4, color: colors.textTertiary},
 
   replyQuote: {
     flexDirection: 'row',
@@ -721,7 +775,7 @@ const styles = StyleSheet.create({
   inputBar: {
     flexDirection: 'row',
     padding: 8,
-    paddingBottom: Platform.OS === 'ios' ? 28 : 8,
+    paddingBottom: 8,
     backgroundColor: colors.background,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.divider,

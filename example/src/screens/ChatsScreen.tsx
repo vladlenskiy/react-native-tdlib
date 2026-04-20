@@ -31,13 +31,12 @@ export interface ChatSummary {
 
 interface Props {
   onOpenChat: (chat: ChatSummary) => void;
-  onOpenDebug: () => void;
 }
 
 const PAGE_SIZE = 25;
 const REFRESH_DEBOUNCE_MS = 400;
 
-const ChatsScreen: React.FC<Props> = ({onOpenChat, onOpenDebug}) => {
+const ChatsScreen: React.FC<Props> = ({onOpenChat}) => {
   const [chats, setChats] = useState<ChatSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -251,19 +250,15 @@ const ChatsScreen: React.FC<Props> = ({onOpenChat, onOpenDebug}) => {
             <View style={styles.headerActions}>
               <TouchableOpacity
                 onPress={() => setSearchOpen(true)}
-                style={styles.headerBtn}>
-                <Text style={styles.headerBtnText}>Search</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={onOpenDebug} style={styles.headerBtn}>
-                <Text style={styles.headerBtnText}>Debug</Text>
+                style={styles.headerAction}
+                hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+                <Text style={styles.headerActionText}>Search</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={onLogout}
-                style={[styles.headerBtn, styles.headerBtnDanger]}>
-                <Text
-                  style={[styles.headerBtnText, styles.headerBtnDangerText]}>
-                  Log out
-                </Text>
+                style={styles.headerAction}
+                hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+                <Text style={styles.headerActionText}>Log out</Text>
               </TouchableOpacity>
             </View>
           </>
@@ -368,7 +363,7 @@ function extractPreview(message: any): string {
 const styles = StyleSheet.create({
   container: {flex: 1, backgroundColor: colors.background},
   header: {
-    paddingTop: 56,
+    paddingTop: 12,
     paddingHorizontal: 16,
     paddingBottom: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -376,21 +371,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    minHeight: 100,
   },
   headerTitle: {fontSize: 24, fontWeight: '700', color: colors.textPrimary},
-  headerActions: {flexDirection: 'row'},
-  headerBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.divider,
-    marginLeft: 6,
-  },
-  headerBtnText: {color: colors.textSecondary, fontSize: 12, fontWeight: '600'},
-  headerBtnDanger: {borderColor: colors.danger},
-  headerBtnDangerText: {color: colors.danger},
+  headerActions: {flexDirection: 'row', alignItems: 'center'},
+  headerAction: {paddingHorizontal: 8, paddingVertical: 6, marginLeft: 4},
+  headerActionText: {color: colors.primary, fontSize: 15, fontWeight: '500'},
   searchRow: {flex: 1, flexDirection: 'row', alignItems: 'center'},
   searchInput: {
     flex: 1,

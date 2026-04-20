@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   loading: {marginTop: 14, color: colors.textSecondary, fontSize: 14},
-  logoBlock: {alignItems: 'center', marginTop: 64, marginBottom: 40},
+  logoBlock: {alignItems: 'center', marginTop: 24, marginBottom: 40},
   logo: {
     width: 100,
     height: 100,
