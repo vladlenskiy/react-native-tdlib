@@ -25,7 +25,6 @@
     "telegram-react-native",
     "tdlib-wrapper",
     "tdlib-react-native",
-    "telegram-integration",
     "async-api",
     "real-time-messaging",
     "secure-messaging",
