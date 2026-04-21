@@ -27,6 +27,7 @@
     "android/src/",
     "ios/TdLibModule.h",
     "ios/TdLibModule.mm",
+    "ios/Libraries/tdjson/include/",
     "ios/Libraries/tdjson/libtdjson.xcframework/",
     "react-native-tdlib.podspec",
     "react-native.config.js"
