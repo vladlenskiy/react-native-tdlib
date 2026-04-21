@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name         = "react-native-tdlib"
-  s.version      = "1.0.0"
+  s.version      = "2.2.0"
   s.summary      = "React Native wrapper for TDLib"
   s.homepage     = "https://github.com/vladlenskiy/react-native-tdlib"
   s.license      = { :type => "MIT" }
