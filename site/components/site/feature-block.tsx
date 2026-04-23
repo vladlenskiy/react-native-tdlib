@@ -28,7 +28,7 @@ export async function FeatureBlock({
         reverse && "lg:[&>*:first-child]:order-2",
       )}
     >
-      <div>
+      <div className="min-w-0">
         <p className="font-mono text-xs uppercase tracking-widest text-accent">
           {eyebrow}
         </p>
@@ -39,7 +39,7 @@ export async function FeatureBlock({
           {body}
         </div>
       </div>
-      <div>
+      <div className="min-w-0">
         <CodeBlock code={code} lang={codeLang} filename={filename} />
       </div>
     </div>
