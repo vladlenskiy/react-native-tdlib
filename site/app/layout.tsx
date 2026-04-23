@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
+import { JsonLd } from "@/components/json-ld";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,18 +16,57 @@ const geistMono = Geist_Mono({
 
 const title = "react-native-tdlib — Telegram client for React Native";
 const description =
-  "Official TDLib under the hood, prebuilt binaries, one API on iOS and Android. Build a real Telegram client in React Native.";
+  "React Native bindings for Telegram's TDLib. Prebuilt iOS and Android binaries, a single typed API for chats, messages, reactions, files, and real-time updates.";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://vladlenskiy.github.io/react-native-tdlib/"),
-  title,
+  title: {
+    default: title,
+    template: "%s · react-native-tdlib",
+  },
   description,
+  applicationName: "react-native-tdlib",
+  authors: [{ name: "Vladlen Kaveev", url: "https://github.com/vladlenskiy" }],
+  creator: "Vladlen Kaveev",
+  publisher: "Vladlen Kaveev",
+  keywords: [
+    "react-native",
+    "react native telegram",
+    "telegram client react native",
+    "tdlib",
+    "tdlib react native",
+    "telegram api",
+    "telegram sdk",
+    "ios",
+    "android",
+    "typescript",
+    "telegram client",
+    "prebuilt tdlib binaries",
+  ],
+  alternates: {
+    canonical: "/",
+  },
+  icons: {
+    icon: "/react-native-tdlib/icon.svg",
+    apple: "/react-native-tdlib/apple-icon",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
   openGraph: {
     title,
     description,
     type: "website",
     url: "https://vladlenskiy.github.io/react-native-tdlib/",
     siteName: "react-native-tdlib",
+    locale: "en_US",
   },
   twitter: {
     card: "summary_large_image",
@@ -34,6 +74,14 @@ export const metadata: Metadata = {
     description,
     creator: "@vladlensk1y",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#09090b" },
+  ],
+  colorScheme: "light dark",
 };
 
 export default function RootLayout({
@@ -47,6 +95,9 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        <JsonLd />
+      </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <ThemeProvider>{children}</ThemeProvider>
       </body>
