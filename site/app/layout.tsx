@@ -19,7 +19,7 @@ const description =
   "React Native bindings for Telegram's TDLib. Prebuilt iOS and Android binaries, a single typed API for chats, messages, reactions, files, and real-time updates.";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://vladlenskiy.github.io/react-native-tdlib/"),
+  metadataBase: new URL("https://react-native-tdlib.js.org/"),
   title: {
     default: title,
     template: "%s · react-native-tdlib",
@@ -47,8 +47,8 @@ export const metadata: Metadata = {
     canonical: "/",
   },
   icons: {
-    icon: "/react-native-tdlib/icon.svg",
-    apple: "/react-native-tdlib/apple-icon",
+    icon: "/icon.svg",
+    apple: "/apple-icon",
   },
   robots: {
     index: true,
@@ -64,7 +64,7 @@ export const metadata: Metadata = {
     title,
     description,
     type: "website",
-    url: "https://vladlenskiy.github.io/react-native-tdlib/",
+    url: "https://react-native-tdlib.js.org/",
     siteName: "react-native-tdlib",
     locale: "en_US",
   },

@@ -14,7 +14,7 @@ export function JsonLd() {
     runtimePlatform: ["iOS", "Android", "React Native"],
     codeRepository: siteConfig.repoUrl,
     license: "https://spdx.org/licenses/MIT.html",
-    url: "https://vladlenskiy.github.io/react-native-tdlib/",
+    url: "https://react-native-tdlib.js.org/",
     ...(release ? { version: release.version } : {}),
     keywords: [
       "react-native",

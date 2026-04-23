@@ -17,7 +17,7 @@ via `.github/workflows/site.yml` on every push to `master` that touches
 
 ```bash
 npm install
-npm run dev     # http://localhost:3000/react-native-tdlib/
+npm run dev     # http://localhost:3000
 npm run build   # static export to ./out
 ```
 
