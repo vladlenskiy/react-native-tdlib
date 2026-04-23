@@ -6,6 +6,5 @@ export default function robots(): MetadataRoute.Robots {
   return {
     rules: { userAgent: "*", allow: "/" },
     sitemap: "https://vladlenskiy.github.io/react-native-tdlib/sitemap.xml",
-    host: "https://vladlenskiy.github.io/react-native-tdlib",
   };
 }
