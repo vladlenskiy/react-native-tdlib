@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 import { getRepoStats, formatStars } from "@/lib/github";
+import { getLatestRelease } from "@/lib/release";
 
 export const dynamic = "force-static";
 export const alt =
@@ -72,6 +73,8 @@ function Logo() {
 
 export default async function OG() {
   const { stars } = await getRepoStats();
+  const release = getLatestRelease();
+  const versionLabel = release ? `v${release.version}` : "MIT";
 
   return new ImageResponse(
     (
@@ -143,7 +146,7 @@ export default async function OG() {
           <div style={{ display: "flex", gap: 24 }}>
             <span>MIT</span>
             <span>·</span>
-            <span>v2.2.1</span>
+            <span>{versionLabel}</span>
             <span>·</span>
             <span>npm i react-native-tdlib</span>
           </div>
