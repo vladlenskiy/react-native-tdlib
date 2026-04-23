@@ -4,7 +4,7 @@
   "description": "React Native wrapper for TDLib",
   "main": "index.js",
   "types": "index.d.ts",
-  "homepage": "https://github.com/vladlenskiy/react-native-tdlib",
+  "homepage": "https://react-native-tdlib.js.org",
   "keywords": [
     "react-native",
     "tdlib",

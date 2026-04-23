@@ -6,10 +6,18 @@
 </p>
 
 <p align="center">
+  <a href="https://react-native-tdlib.js.org"><strong>Website →</strong></a> ·
+  <a href="./docs">Docs</a> ·
+  <a href="./example">Example app</a> ·
+  <a href="https://www.npmjs.com/package/react-native-tdlib">npm</a>
+</p>
+
+<p align="center">
   <a href="https://www.npmjs.com/package/react-native-tdlib"><img src="https://img.shields.io/npm/v/react-native-tdlib.svg?style=flat-square" alt="npm" /></a>
   <a href="https://www.npmjs.com/package/react-native-tdlib"><img src="https://img.shields.io/npm/dm/react-native-tdlib.svg?style=flat-square" alt="downloads" /></a>
   <a href="./LICENSE"><img src="https://img.shields.io/npm/l/react-native-tdlib.svg?style=flat-square" alt="license" /></a>
   <img src="https://img.shields.io/badge/platform-ios%20%7C%20android-lightgrey?style=flat-square" alt="platforms" />
+  <a href="https://react-native-tdlib.js.org"><img src="https://img.shields.io/badge/website-react--native--tdlib.js.org-229ED9?style=flat-square" alt="website" /></a>
 </p>
 
 <p align="center">
