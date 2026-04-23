@@ -17,16 +17,18 @@ export function getLatestRelease(): { version: string; date: string } | null {
 }
 
 export function relativeDate(iso: string, now = new Date()): string {
+  // Use `Math.floor` so a label like "yesterday" only appears after a full
+  // calendar day has elapsed, not after ~12 hours.
   const then = new Date(iso + "T00:00:00Z");
   const days = Math.max(
     0,
-    Math.round((now.getTime() - then.getTime()) / 86_400_000),
+    Math.floor((now.getTime() - then.getTime()) / 86_400_000),
   );
   if (days === 0) return "today";
   if (days === 1) return "yesterday";
   if (days < 14) return `${days} days ago`;
-  const weeks = Math.round(days / 7);
+  const weeks = Math.floor(days / 7);
   if (weeks < 8) return `${weeks} weeks ago`;
-  const months = Math.round(days / 30);
+  const months = Math.floor(days / 30);
   return `${months} months ago`;
 }

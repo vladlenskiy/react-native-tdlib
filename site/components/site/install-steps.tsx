@@ -1,4 +1,5 @@
 import { CodeBlock } from "./code-block";
+import { siteConfig } from "@/lib/site-config";
 
 const INSTALL_CMD = `npm install react-native-tdlib
 cd ios && pod install`;
@@ -80,7 +81,7 @@ export function InstallSteps() {
             <p className="mt-3 text-[15px] leading-relaxed text-muted">
               The repo ships{" "}
               <a
-                href="https://github.com/vladlenskiy/react-native-tdlib/tree/master/example"
+                href={siteConfig.exampleUrl}
                 className="text-foreground underline decoration-border underline-offset-4 hover:decoration-accent"
               >
                 a complete Telegram-like example app

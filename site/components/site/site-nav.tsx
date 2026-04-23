@@ -20,7 +20,7 @@ export function SiteNav({ stars }: { stars: number | null }) {
 
         <nav className="flex items-center gap-1 sm:gap-2">
           <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
-            <a href={siteConfig.repoUrl + "/tree/master/docs"}>Docs</a>
+            <a href={siteConfig.docsUrl}>Docs</a>
           </Button>
           <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
             <a href={siteConfig.npmUrl}>npm</a>

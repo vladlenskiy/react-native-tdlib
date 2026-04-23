@@ -22,10 +22,7 @@ export function SiteFooter() {
           is Boost-licensed.
         </div>
         <nav className="flex flex-wrap items-center gap-5 text-sm text-muted">
-          <a
-            href={siteConfig.repoUrl + "/tree/master/docs"}
-            className="hover:text-foreground"
-          >
+          <a href={siteConfig.docsUrl} className="hover:text-foreground">
             Docs
           </a>
           <a href={siteConfig.repoUrl} className="hover:text-foreground">
