@@ -9,7 +9,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   return [
     {
-      url: "https://vladlenskiy.github.io/react-native-tdlib/",
+      url: "https://react-native-tdlib.js.org/",
       lastModified,
       changeFrequency: "weekly",
       priority: 1,
