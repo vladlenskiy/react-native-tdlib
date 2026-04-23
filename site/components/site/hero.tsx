@@ -1,6 +1,5 @@
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { GithubIcon } from "@/components/ui/icons";
 import { siteConfig } from "@/lib/site-config";
 import { asset } from "@/lib/utils";
 
@@ -42,16 +41,13 @@ export function Hero() {
 
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Button size="lg" asChild>
-              <a href={siteConfig.gettingStartedUrl}>
-                Get started
+              <a href={siteConfig.exampleUrl}>
+                See the example app
                 <ArrowRight className="h-4 w-4" />
               </a>
             </Button>
             <Button size="lg" variant="secondary" asChild>
-              <a href={siteConfig.repoUrl}>
-                <GithubIcon className="h-4 w-4" />
-                Star on GitHub
-              </a>
+              <a href="#quickstart">Quick start</a>
             </Button>
           </div>
 

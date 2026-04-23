@@ -6,26 +6,16 @@ import { formatStars } from "@/lib/github";
 
 export function StarCTA({ stars }: { stars: number | null }) {
   return (
-    <section className="relative overflow-hidden border-b border-border/60 py-24 sm:py-32">
-      <div
-        className="pointer-events-none absolute inset-0 -z-10 opacity-60"
-        style={{
-          background:
-            "radial-gradient(55% 55% at 50% 50%, rgba(34,158,217,0.18), transparent 70%)",
-        }}
-      />
+    <section className="border-b border-border/60 py-20 sm:py-24">
       <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
         <p className="font-mono text-xs uppercase tracking-widest text-accent">
-          Like it? Drop a star.
+          GitHub
         </p>
-        <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-5xl">
-          One click keeps this library alive.
+        <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
+          Star it if it works for you.
         </h2>
-        <p className="mt-6 text-lg leading-relaxed text-muted">
-          Stars make{" "}
-          <span className="font-mono text-foreground">react-native-tdlib</span>{" "}
-          more discoverable for the next dev trying to skip a week of TDLib
-          compilation. Takes five seconds. Means a lot.
+        <p className="mt-5 text-[15px] leading-relaxed text-muted">
+          Stars are the discovery signal for React Native wrappers on GitHub.
         </p>
         <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
           <Button size="lg" asChild>
@@ -39,7 +29,7 @@ export function StarCTA({ stars }: { stars: number | null }) {
             </a>
           </Button>
           <Button size="lg" variant="secondary" asChild>
-            <a href={siteConfig.sponsorUrl}>Sponsor on GitHub</a>
+            <a href={siteConfig.sponsorUrl}>Sponsor</a>
           </Button>
         </div>
       </div>

@@ -1,11 +1,20 @@
-import { getLatestRelease, relativeDate } from "@/lib/release";
+import { getLatestRelease } from "@/lib/release";
+
+function formatReleaseDate(iso: string): string {
+  return new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
 
 export function NumbersStrip() {
   const release = getLatestRelease();
   const releaseLabel = release
     ? {
         value: `v${release.version}`,
-        label: `Released ${relativeDate(release.date)}`,
+        label: `Released ${formatReleaseDate(release.date)}`,
       }
     : { value: "MIT", label: "Boost-licensed TDLib" };
 
