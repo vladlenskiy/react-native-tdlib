@@ -10,13 +10,15 @@ import { NativeEventEmitter, NativeModules } from 'react-native';
 await TdLib.startTdLib({ api_id: 12345, api_hash: 'your_hash' });
 
 const emitter = new NativeEventEmitter(NativeModules.TdLibModule);
+
 emitter.addListener('tdlib-update', e => {
+  if (e.type === 'updateAuthorizationState') {
+    // drive phone → code → password from here
+  }
   if (e.type === 'updateNewMessage') {
     console.log('📨', JSON.parse(e.raw).message);
   }
-});
-
-await TdLib.sendMessage(chatId, 'Hello from React Native!');`;
+});`;
 
 export function QuickStart() {
   return (
@@ -49,7 +51,7 @@ export function QuickStart() {
           </div>
           <div className="flex flex-col gap-3">
             <p className="font-mono text-xs uppercase tracking-widest text-muted">
-              2. Boot, listen, send
+              2. Boot and listen
             </p>
             <CodeBlock code={BOOT} lang="ts" filename="app.ts" />
           </div>
