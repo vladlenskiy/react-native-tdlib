@@ -40,7 +40,7 @@ export function QuickStart() {
         </div>
 
         <div className="grid gap-4 lg:grid-cols-[0.9fr_1.4fr]">
-          <div className="flex flex-col gap-3">
+          <div className="flex min-w-0 flex-col gap-3">
             <p className="font-mono text-xs uppercase tracking-widest text-muted">
               1. Install
             </p>
@@ -49,7 +49,7 @@ export function QuickStart() {
               RN ≥ 0.60 · iOS ≥ 11 · Android minSdk ≥ 21
             </p>
           </div>
-          <div className="flex flex-col gap-3">
+          <div className="flex min-w-0 flex-col gap-3">
             <p className="font-mono text-xs uppercase tracking-widest text-muted">
               2. Boot and listen
             </p>
