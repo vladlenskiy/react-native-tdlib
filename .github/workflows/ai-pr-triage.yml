@@ -45,12 +45,15 @@ jobs:
               await github.rest.issues.addLabels({
                 owner, repo, issue_number: number, labels: [label],
               });
+              const agentsMdUrl = `${context.serverUrl}/${owner}/${repo}/blob/master/AGENTS.md`;
               await github.rest.issues.createComment({
                 owner, repo, issue_number: number,
                 body: [
                   'Thanks for disclosing AI assistance — this PR is now labeled `maybe automated`.',
                   '',
-                  'Per [AGENTS.md](../blob/master/AGENTS.md), this PR will be auto-closed in 3 days unless a maintainer confirms ownership and you provide device-test logs from the example app on iOS and Android. Jest output alone is not sufficient — the test suite mocks the native bridge.',
+                  `Per [AGENTS.md](${agentsMdUrl}), this PR will be auto-closed in 3 days unless a maintainer confirms ownership and you provide device-test logs from the example app on iOS and Android. Jest output alone is not sufficient — the test suite mocks the native bridge.`,
+                  '',
+                  '_Maintainer: add the `reviewed` label to keep this PR open past the 3-day window._',
                 ].join('\n'),
               });
             } else if (!hasMarker && alreadyLabeled) {

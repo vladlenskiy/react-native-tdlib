@@ -1,0 +1,62 @@
+name: "Device-test claim check"
+
+on:
+  pull_request_target:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  pull-requests: read
+  contents: read
+
+jobs:
+  check:
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Detect whether PR touches native bridge
+        id: touches
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+              per_page: 100,
+            });
+            const native = files.some(f =>
+              f.filename.startsWith('ios/') ||
+              f.filename.startsWith('android/src/')
+            );
+            core.info(`Files changed: ${files.length}`);
+            core.info(`Touches native bridge: ${native}`);
+            core.setOutput('native', native);
+
+      - name: Verify device-test checkboxes
+        if: steps.touches.outputs.native == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = context.payload.pull_request.body || '';
+            const iosChecked = /- \[x\] Ran the method[^\n]*iOS/i.test(body);
+            const androidChecked = /- \[x\] Ran the method[^\n]*Android/i.test(body);
+
+            if (iosChecked && androidChecked) {
+              core.info('Both device-test checkboxes are checked.');
+              return;
+            }
+
+            const iosStatus = iosChecked ? 'checked' : 'UNCHECKED';
+            const androidStatus = androidChecked ? 'checked' : 'UNCHECKED';
+            core.setFailed([
+              'This PR changes native bridge code (ios/ or android/src/).',
+              '',
+              'Both device-test checkboxes must be checked in the PR description:',
+              `  • iOS:     ${iosStatus}`,
+              `  • Android: ${androidStatus}`,
+              '',
+              'If you genuinely ran the method in the example app against a live',
+              'TDLib session on both platforms, tick the boxes and paste the log',
+              'output below them. See AGENTS.md — the Jest suite cannot verify',
+              'the native bridge, only the JS delegation layer.',
+            ].join('\n'));
