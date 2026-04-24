@@ -54,7 +54,7 @@
     "@release-it/conventional-changelog": "^10.0.1",
     "@types/react": "*",
     "@types/react-native": "*",
-    "babel-jest": "^29.7.0",
+    "babel-jest": "^30.3.0",
     "jest": "^30.3.0",
     "release-it": "^19.0.3",
     "typescript": "^3.8.3"
