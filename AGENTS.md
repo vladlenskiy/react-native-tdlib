@@ -36,10 +36,15 @@ missing `RCT_EXPORT_METHOD` macro.
 
 **`npm test` passing is not evidence that a new native method works.**
 
-If you add or modify a method that touches `ios/` or `android/`, you
-are expected to run it end-to-end in the example app on both platforms
-against a live TDLib session and include the log output in the PR body.
-See the PR template for the exact checklist.
+If you add or modify a method that touches `ios/` or `android/src/`,
+you are expected to run it end-to-end in the example app on both
+platforms against a live TDLib session and include the log output in
+the PR body. See the PR template for the exact checklist.
+
+A CI check enforces this: PRs touching native bridge code must have
+both device-test checkboxes ticked in the PR description, or the
+`Device-test claim check` job fails. Ticking the boxes without real
+evidence is dishonest and will be caught on review.
 
 ## Project conventions
 
