@@ -74,6 +74,7 @@ const destructiveMethods = [
   'removeMessageReaction',
   'addComment',
   'deleteComment',
+  'deleteMessages',
   'joinChat',
   'leaveChat',
   'verifyPhoneNumber',
@@ -460,6 +461,16 @@ const MethodsTestExample: React.FC = () => {
     await run('deleteComment', () => TdLib.deleteComment(cid, mid));
   }, [appendLog, run, sampleChatId, sampleMessageId]);
 
+  const runDeleteMessages = useCallback(async () => {
+    const cid = Number(sampleChatId);
+    const mid = Number(sampleMessageId);
+    if (!cid || !mid) {
+      appendLog('⚠ set sampleChatId+sampleMessageId first');
+      return;
+    }
+    await run('deleteMessages', () => TdLib.deleteMessages(cid, [mid]));
+  }, [appendLog, run, sampleChatId, sampleMessageId]);
+
   const stats = useMemo(() => {
     const vals = Object.values(results);
     return {
@@ -556,6 +567,7 @@ const MethodsTestExample: React.FC = () => {
         <Button title="removeMessageReaction" onPress={runRemoveReaction} />
         <Button title="addComment (no topic)" onPress={runAddComment} />
         <Button title="deleteComment" onPress={runDeleteComment} />
+        <Button title="deleteMessages" onPress={runDeleteMessages} />
         <Button title="joinChat" onPress={runJoinChat} />
         <Button title="leaveChat" onPress={runLeaveChat} />
       </View>
