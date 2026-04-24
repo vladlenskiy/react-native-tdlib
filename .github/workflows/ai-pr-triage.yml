@@ -1,0 +1,60 @@
+name: "AI-assisted PR triage"
+
+on:
+  pull_request_target:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  label:
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add or remove "maybe automated" label based on marker
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const marker = 'AI_ASSISTED_PR';
+            const label = 'maybe automated';
+            const { owner, repo } = context.repo;
+            const number = context.payload.pull_request.number;
+            const body = context.payload.pull_request.body || '';
+            const hasMarker = body.includes(marker);
+
+            const { data: labels } = await github.rest.issues.listLabelsOnIssue({
+              owner, repo, issue_number: number,
+            });
+            const alreadyLabeled = labels.some(l => l.name === label);
+
+            if (hasMarker && !alreadyLabeled) {
+              try {
+                await github.rest.issues.getLabel({ owner, repo, name: label });
+              } catch (e) {
+                if (e.status === 404) {
+                  await github.rest.issues.createLabel({
+                    owner, repo, name: label,
+                    color: 'ededed',
+                    description: 'PR marked as AI-assisted — auto-closes in 3 days without maintainer confirmation.',
+                  });
+                } else {
+                  throw e;
+                }
+              }
+              await github.rest.issues.addLabels({
+                owner, repo, issue_number: number, labels: [label],
+              });
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: number,
+                body: [
+                  'Thanks for disclosing AI assistance — this PR is now labeled `maybe automated`.',
+                  '',
+                  'Per [AGENTS.md](../blob/master/AGENTS.md), this PR will be auto-closed in 3 days unless a maintainer confirms ownership and you provide device-test logs from the example app on iOS and Android. Jest output alone is not sufficient — the test suite mocks the native bridge.',
+                ].join('\n'),
+              });
+            } else if (!hasMarker && alreadyLabeled) {
+              await github.rest.issues.removeLabel({
+                owner, repo, issue_number: number, name: label,
+              });
+            }
