@@ -28,5 +28,6 @@
 - [ ] Method count bumped consistently across `README.md` and `site/components/site/`
 - [ ] Destructive methods added to `destructiveMethods` in `example/src/MethodsTestExample.tsx`
 
-<!-- If this PR was written with meaningful AI agent assistance, keep the marker below. See AGENTS.md. -->
-<!-- AI_ASSISTED_PR -->
+## Disclosure
+
+- [ ] This PR was written with meaningful AI agent assistance (see AGENTS.md)
