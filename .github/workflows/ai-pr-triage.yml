@@ -16,12 +16,15 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const marker = 'AI_ASSISTED_PR';
+            // Opt-in disclosure marker: a ticked checkbox in the PR body.
+            // Using a checkbox (not an HTML comment) avoids false positives
+            // from contributors who leave the PR template untouched.
+            const markerRe = /- \[x\] This PR was written with meaningful AI agent assistance/i;
             const label = 'maybe automated';
             const { owner, repo } = context.repo;
             const number = context.payload.pull_request.number;
             const body = context.payload.pull_request.body || '';
-            const hasMarker = body.includes(marker);
+            const hasMarker = markerRe.test(body);
 
             const { data: labels } = await github.rest.issues.listLabelsOnIssue({
               owner, repo, issue_number: number,

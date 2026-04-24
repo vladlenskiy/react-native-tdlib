@@ -99,18 +99,19 @@ Conventional Commits in English. Examples:
 
 ## PR description requirement
 
-When opening a pull request, include the following HTML comment at
-the bottom of the PR description:
+The PR template ends with a `## Disclosure` section containing this
+checkbox:
 
 ```
-<!-- AI_ASSISTED_PR -->
+- [ ] This PR was written with meaningful AI agent assistance (see AGENTS.md)
 ```
 
-This allows the maintainer to identify AI-assisted PRs for triage.
-PRs containing this marker are automatically labeled `maybe automated`
-and will be closed in 3 days unless a human confirms ownership and
-provides device-test evidence (see the PR template).
+If an AI agent did meaningful work on the change, tick the box. A
+ticked box labels the PR `maybe automated`, and it will be closed in
+3 days unless a maintainer confirms ownership and you provide
+device-test evidence from the example app on iOS and Android (Jest
+output alone is not sufficient — the suite mocks the native bridge).
 
-If you are a human contributor who used an AI agent as a tool but
-reviewed every change yourself and ran the code on a real device,
-include the marker anyway — honesty keeps the signal useful.
+Leave the box unticked only if the PR is entirely human-authored.
+Ticking the box is opt-in disclosure, not a punishment — it lets the
+maintainer prioritize review and keeps the triage signal honest.
