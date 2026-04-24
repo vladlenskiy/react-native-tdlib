@@ -4,6 +4,7 @@ const mockMethods = {
   td_json_client_execute: jest.fn(),
   td_json_client_send: jest.fn(),
   td_json_client_receive: jest.fn(),
+  getTextEntities: jest.fn(),
   startTdLib: jest.fn(),
   login: jest.fn(),
   verifyPhoneNumber: jest.fn(),
@@ -84,8 +85,8 @@ describe('react-native-tdlib', () => {
   });
 
   describe('method count', () => {
-    it('exports exactly 51 methods', () => {
-      expect(Object.keys(TdLib)).toHaveLength(51);
+    it('exports exactly 52 methods', () => {
+      expect(Object.keys(TdLib)).toHaveLength(52);
     });
   });
 
@@ -110,6 +111,11 @@ describe('react-native-tdlib', () => {
     it('delegates td_json_client_receive to native module', () => {
       TdLib.td_json_client_receive();
       expect(mockMethods.td_json_client_receive).toHaveBeenCalled();
+    });
+
+    it('delegates getTextEntities to native module', () => {
+      TdLib.getTextEntities('@telegram #test');
+      expect(mockMethods.getTextEntities).toHaveBeenCalledWith('@telegram #test');
     });
   });
 

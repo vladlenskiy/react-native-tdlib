@@ -133,6 +133,20 @@ public class TdLibModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
+    public void getTextEntities(String text, Promise promise) {
+        try {
+            TdApi.Object response = Client.execute(new TdApi.GetTextEntities(text != null ? text : ""));
+            if (response != null) {
+                promise.resolve(gson.toJson(response));
+            } else {
+                promise.reject("GET_TEXT_ENTITIES_ERROR", "No response from TDLib");
+            }
+        } catch (Exception e) {
+            promise.reject("GET_TEXT_ENTITIES_EXCEPTION", e.getMessage());
+        }
+    }
+
+    @ReactMethod
     public void td_json_client_receive(Promise promise) {
         try {
             if (client == null) {
@@ -1677,6 +1691,11 @@ public void addComment(
         switch (type) {
             case "getAuthorizationState":
                 return new TdApi.GetAuthorizationState();
+
+            case "getTextEntities": {
+                String text = (String) requestMap.get("text");
+                return new TdApi.GetTextEntities(text != null ? text : "");
+            }
 
             case "setAuthenticationPhoneNumber": {
                 String phoneNumber = (String) requestMap.get("phone_number");
