@@ -1,0 +1,33 @@
+name: Feature request
+description: Propose a new TDLib method, event, or library improvement.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before opening: check the [TDLib API reference](https://core.telegram.org/tdlib/docs/classtd_1_1td__api_1_1_function.html) to confirm the method exists upstream, and search existing issues to avoid duplicates.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to build that the library does not currently support?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed API
+      description: Sketch the JS surface — method name, parameters, return shape, related events.
+      render: ts
+    validations:
+      required: true
+  - type: input
+    id: tdlib-method
+    attributes:
+      label: Underlying TDLib method (if applicable)
+      placeholder: "e.g. searchPublicChat"
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds you tried, or related issues / libraries.

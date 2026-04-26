@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or discussion
+    url: https://github.com/vladlenskiy/react-native-tdlib/discussions
+    about: Usage questions, design discussion, or anything that is not a bug report or a concrete feature proposal.
+  - name: TDLib upstream issue
+    url: https://github.com/tdlib/td/issues
+    about: Bugs in TDLib itself (auth, network, schema) belong here, not in this repository.

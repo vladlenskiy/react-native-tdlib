@@ -1,0 +1,55 @@
+name: Bug report
+description: A method or event in react-native-tdlib does not behave as documented.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Please fill in the boxes below — the more reproducible the case, the faster the fix.
+
+        For TDLib bugs themselves (rather than the bridge), file upstream at https://github.com/tdlib/td/issues.
+  - type: input
+    id: version
+    attributes:
+      label: react-native-tdlib version
+      placeholder: "e.g. 2.2.1"
+    validations:
+      required: true
+  - type: input
+    id: rn-version
+    attributes:
+      label: React Native version
+      placeholder: "e.g. 0.74.5"
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      multiple: true
+      options:
+        - iOS
+        - Android
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you got. Include the TDLib method or event involved.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: Smallest snippet that triggers the bug. The example app under `example/` is a good starting point.
+      render: ts
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant `tdlib-update` payloads or native logs (Xcode console, `adb logcat`).
+      render: shell
