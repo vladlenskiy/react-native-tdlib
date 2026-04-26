@@ -463,12 +463,15 @@ const MethodsTestExample: React.FC = () => {
 
   const runDeleteMessages = useCallback(async () => {
     const cid = Number(sampleChatId);
-    const mid = Number(sampleMessageId);
-    if (!cid || !mid) {
+    const mids = sampleMessageId
+      .split(',')
+      .map(id => Number(id.trim()))
+      .filter(id => Number.isFinite(id) && id > 0);
+    if (!cid || mids.length === 0) {
       appendLog('⚠ set sampleChatId+sampleMessageId first');
       return;
     }
-    await run('deleteMessages', () => TdLib.deleteMessages(cid, [mid]));
+    await run('deleteMessages', () => TdLib.deleteMessages(cid, mids));
   }, [appendLog, run, sampleChatId, sampleMessageId]);
 
   const stats = useMemo(() => {
@@ -543,7 +546,7 @@ const MethodsTestExample: React.FC = () => {
       <TextInput
         value={sampleMessageId}
         onChangeText={setSampleMessageId}
-        placeholder="messageId"
+        placeholder="messageId or id1,id2"
         placeholderTextColor="gray"
         style={styles.input}
       />
