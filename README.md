@@ -13,8 +13,11 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/vladlenskiy/react-native-tdlib/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/vladlenskiy/react-native-tdlib/ci.yml?branch=master&style=flat-square&label=CI" alt="CI" /></a>
   <a href="https://www.npmjs.com/package/react-native-tdlib"><img src="https://img.shields.io/npm/v/react-native-tdlib.svg?style=flat-square" alt="npm" /></a>
   <a href="https://www.npmjs.com/package/react-native-tdlib"><img src="https://img.shields.io/npm/dm/react-native-tdlib.svg?style=flat-square" alt="downloads" /></a>
+  <a href="https://github.com/vladlenskiy/react-native-tdlib/stargazers"><img src="https://img.shields.io/github/stars/vladlenskiy/react-native-tdlib?style=flat-square" alt="stars" /></a>
+  <a href="https://github.com/vladlenskiy/react-native-tdlib/network/dependents"><img src="https://img.shields.io/badge/used%20by-dependents-blue?style=flat-square&logo=github" alt="used by" /></a>
   <a href="./LICENSE"><img src="https://img.shields.io/npm/l/react-native-tdlib.svg?style=flat-square" alt="license" /></a>
   <img src="https://img.shields.io/badge/platform-ios%20%7C%20android-lightgrey?style=flat-square" alt="platforms" />
   <a href="https://react-native-tdlib.js.org"><img src="https://img.shields.io/badge/website-react--native--tdlib.js.org-229ED9?style=flat-square" alt="website" /></a>
@@ -90,6 +93,14 @@ cd react-native-tdlib/example && npm install
 cd ios && pod install && cd ..
 npx react-native run-ios       # or run-android
 ```
+
+## Used by
+
+Apps and projects shipping `react-native-tdlib`:
+
+<!-- Add your project below in the format: `- [Name](url) — one-line description.` -->
+
+_Using `react-native-tdlib` in production?_ Open a PR adding your project here, or list yours via the [GitHub dependents](https://github.com/vladlenskiy/react-native-tdlib/network/dependents) view.
 
 ## Documentation
 
