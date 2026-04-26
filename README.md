@@ -133,6 +133,16 @@ Open source takes time. If this library saves you a week of wrestling with `cmak
 
 Sponsors are listed in the [`CHANGELOG`](./CHANGELOG.md) and on the repository homepage.
 
+## Star History
+
+<a href="https://www.star-history.com/?repos=vladlenskiy%2Freact-native-tdlib">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=vladlenskiy/react-native-tdlib&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=vladlenskiy/react-native-tdlib&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=vladlenskiy/react-native-tdlib&type=date&legend=top-left" />
+ </picture>
+</a>
+
 ## License
 
 [MIT](./LICENSE) © Vladlen Kaveev and contributors. TDLib itself is licensed under the Boost Software License.
