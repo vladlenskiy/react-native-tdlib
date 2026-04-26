@@ -311,12 +311,7 @@ RCT_EXPORT_METHOD(td_json_client_execute:(NSDictionary *)request
 RCT_EXPORT_METHOD(getTextEntities:(NSString *)text
                   resolve:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject) {
-    void *c = NULL;
     @try {
-        // Use a short-lived client so this pure helper doesn't depend on the
-        // main TDLib session lifecycle managed by startTdLib/destroy.
-        c = td_json_client_create();
-
         NSDictionary *request = @{
             @"@type": @"getTextEntities",
             @"text": text ?: @""
@@ -325,26 +320,19 @@ RCT_EXPORT_METHOD(getTextEntities:(NSString *)text
         NSError *error = nil;
         NSData *requestData = [NSJSONSerialization dataWithJSONObject:request options:0 error:&error];
         if (error) {
-            td_json_client_destroy(c);
             reject(@"JSON_SERIALIZATION_ERROR", error.localizedDescription, nil);
             return;
         }
 
         NSString *requestString = [[NSString alloc] initWithData:requestData encoding:NSUTF8StringEncoding];
-        const char *response = td_json_client_execute(c, [requestString UTF8String]);
-        NSString *responseString = response != NULL ? [NSString stringWithUTF8String:response] : nil;
-        td_json_client_destroy(c);
-        c = NULL;
+        const char *response = td_json_client_execute(NULL, [requestString UTF8String]);
 
-        if (responseString != nil) {
-            resolve(responseString);
+        if (response != NULL) {
+            resolve([NSString stringWithUTF8String:response]);
         } else {
             reject(@"GET_TEXT_ENTITIES_ERROR", @"No response from TDLib", nil);
         }
     } @catch (NSException *exception) {
-        if (c != NULL) {
-            td_json_client_destroy(c);
-        }
         reject(@"GET_TEXT_ENTITIES_EXCEPTION", exception.reason, nil);
     }
 }

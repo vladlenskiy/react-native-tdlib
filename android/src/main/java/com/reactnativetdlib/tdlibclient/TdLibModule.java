@@ -1692,11 +1692,6 @@ public void addComment(
             case "getAuthorizationState":
                 return new TdApi.GetAuthorizationState();
 
-            case "getTextEntities": {
-                String text = (String) requestMap.get("text");
-                return new TdApi.GetTextEntities(text != null ? text : "");
-            }
-
             case "setAuthenticationPhoneNumber": {
                 String phoneNumber = (String) requestMap.get("phone_number");
                 return new TdApi.SetAuthenticationPhoneNumber(phoneNumber, null);
