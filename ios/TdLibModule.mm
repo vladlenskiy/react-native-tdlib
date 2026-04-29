@@ -947,6 +947,22 @@ RCT_EXPORT_METHOD(deleteComment:(double)chatId
     } reject:reject];
 }
 
+RCT_EXPORT_METHOD(deleteMessages:(double)chatId
+                  messageIds:(NSArray *)messageIds
+                  revoke:(BOOL)revoke
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    NSDictionary *request = @{
+        @"@type": @"deleteMessages",
+        @"chat_id": @((long long)chatId),
+        @"message_ids": messageIds,
+        @"revoke": @(revoke)
+    };
+    [self sendTdLibRequest:request resolve:^(id result) {
+        resolve(@(YES));
+    } reject:reject];
+}
+
 // ==================== Reactions ====================
 
 RCT_EXPORT_METHOD(addMessageReaction:(double)chatId

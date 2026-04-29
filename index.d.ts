@@ -156,6 +156,11 @@ declare module "react-native-tdlib" {
     offset: number,
     limit: number,
   ): Promise<TdRawResult>;
+  export function deleteMessages(
+    chatId: number,
+    messageIds: number[],
+    revoke?: boolean,
+  ): Promise<boolean>;
 
   // ==================== Comments ====================
 
@@ -250,6 +255,7 @@ declare module "react-native-tdlib" {
     getChatMessagePosition: typeof getChatMessagePosition;
     getMessageThread: typeof getMessageThread;
     getMessageThreadHistory: typeof getMessageThreadHistory;
+    deleteMessages: typeof deleteMessages;
 
     addComment: typeof addComment;
     deleteComment: typeof deleteComment;
