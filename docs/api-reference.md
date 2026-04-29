@@ -130,6 +130,12 @@ Escape hatch for TDLib functions not yet wrapped with a dedicated method (`regis
 | `td_json_client_send` | `(request)` | **Fire-and-forget.** Response, if any, arrives via `tdlib-update`. |
 | `td_json_client_receive` | `()` | Blocking receive — only usable when the high-level API is **not** running. |
 
+## Text helpers
+
+| Method | Signature | Returns |
+|---|---|---|
+| `getTextEntities` | `(text: string)` | `Promise<string>` — parses Telegram entities like mentions, hashtags, bot commands, and URLs from plain text. |
+
 ## Result types
 
 ```ts

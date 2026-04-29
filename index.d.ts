@@ -59,6 +59,7 @@ declare module "react-native-tdlib" {
   export function td_json_client_send(request: Record<string, unknown>): Promise<string>;
   export function td_json_client_execute(request: Record<string, unknown>): Promise<string>;
   export function td_json_client_receive(): Promise<string>;
+  export function getTextEntities(text: string): Promise<string>;
 
   // ==================== Options ====================
 
@@ -222,6 +223,7 @@ declare module "react-native-tdlib" {
     td_json_client_execute: typeof td_json_client_execute;
     td_json_client_send: typeof td_json_client_send;
     td_json_client_receive: typeof td_json_client_receive;
+    getTextEntities: typeof getTextEntities;
 
     startTdLib: typeof startTdLib;
     login: typeof login;

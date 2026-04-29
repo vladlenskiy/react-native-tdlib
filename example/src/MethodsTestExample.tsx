@@ -32,6 +32,7 @@ interface TestResult {
 
 const safeMethods = [
   'td_json_client_execute',
+  'getTextEntities',
   'getAuthorizationState',
   'getProfile',
   'getOption',
@@ -186,12 +187,15 @@ const MethodsTestExample: React.FC = () => {
       return 'emitted';
     });
 
-    // Base API: execute is always safe (synchronous, no client needed for some reqs)
+    // Base API helper example
     await run('td_json_client_execute', () =>
       TdLib.td_json_client_execute({
         '@type': 'getTextEntities',
         text: '@telegram /test_command https://telegram.org #test',
       }),
+    );
+    await run('getTextEntities', () =>
+      TdLib.getTextEntities('@telegram /test_command https://telegram.org #test'),
     );
 
     // High-level basics
