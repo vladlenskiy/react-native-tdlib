@@ -28,6 +28,7 @@ module.exports = {
     blockList: [
       new RegExp(`${packageRoot}/node_modules/react/.*`),
       new RegExp(`${packageRoot}/node_modules/react-native/.*`),
+      new RegExp(`${packageRoot}/\\.claude/.*`),
     ],
   },
   transformer: {

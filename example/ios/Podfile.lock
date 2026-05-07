@@ -239,7 +239,7 @@ PODS:
   - React-jsinspector (0.70.10)
   - React-logger (0.70.10):
     - glog
-  - react-native-tdlib (1.0.0):
+  - react-native-tdlib (2.2.0):
     - React-Core
   - React-perflogger (0.70.10)
   - React-RCTActionSheet (0.70.10):
@@ -449,7 +449,7 @@ SPEC CHECKSUMS:
   React-jsiexecutor: eb5c989d256412f7d48851eee16d4fb791293d4c
   React-jsinspector: 2a1985769123b199c195a96f46478b35db139712
   React-logger: d6b8c2a104ac0c237408297085a3f59d6bd514ca
-  react-native-tdlib: 8cad9257ff7006661b305d419d2aef6313834b32
+  react-native-tdlib: e5df006fdf179939b07119dee70c5f9aedb3ccf2
   React-perflogger: f86e85eb59151d09e9b44b8931f5c088e4f08bbc
   React-RCTActionSheet: cd3d76501a6069e164986b93f144be34b593955c
   React-RCTAnimation: 2d09db635202e5d6f66de596f5a6b38389fe76ec
