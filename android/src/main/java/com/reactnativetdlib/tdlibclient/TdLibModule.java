@@ -425,7 +425,7 @@ public void destroy(Promise promise) {
                 @Override
                 public void onResult(TdApi.Object object) {
                     if (object instanceof TdApi.User) {
-                        promise.resolve(new Gson().toJson(object));
+                        promise.resolve(gson.toJson(object));
                     } else if (object instanceof TdApi.Error) {
                         TdApi.Error error = (TdApi.Error) object;
                         promise.reject("GET_PROFILE_ERROR", error.message);
@@ -445,7 +445,7 @@ public void destroy(Promise promise) {
                 @Override
                 public void onResult(TdApi.Object object) {
                     if (object instanceof TdApi.User) {
-                        promise.resolve(new Gson().toJson(object));
+                        promise.resolve(gson.toJson(object));
                     } else if (object instanceof TdApi.Error) {
                         TdApi.Error error = (TdApi.Error) object;
                         promise.reject("GET_USER_PROFILE_ERROR", error.message);
@@ -508,12 +508,12 @@ public void getUserFull(double userId, Promise promise) {
                     String className = object.getClass().getSimpleName();
 
                     if (usingGetUserFull.get() && ("UserFull".equals(className) || className.endsWith("UserFull"))) {
-                        promise.resolve(new com.google.gson.Gson().toJson(object));
+                        promise.resolve(gson.toJson(object));
                         return;
                     }
 
                     if ("User".equals(className) || className.endsWith("User")) {
-                        promise.resolve(new com.google.gson.Gson().toJson(object));
+                        promise.resolve(gson.toJson(object));
                         return;
                     }
 
@@ -524,7 +524,7 @@ public void getUserFull(double userId, Promise promise) {
                     }
 
                     // Unknown type — return serialized object
-                    promise.resolve(new com.google.gson.Gson().toJson(object));
+                    promise.resolve(gson.toJson(object));
                 } catch (Exception ex) {
                     promise.reject("GET_USER_FULL_ONRESULT_EXCEPTION", ex.getMessage());
                 }
@@ -542,7 +542,7 @@ public void getUserFull(double userId, Promise promise) {
             TdApi.GetUserProfilePhotos request = new TdApi.GetUserProfilePhotos(uid, offset, limit);
 
             client.send(request, object -> {
-                String rawJson = new Gson().toJson(object);
+                String rawJson = gson.toJson(object);
 
                 if (object.getConstructor() == TdApi.Error.CONSTRUCTOR) {
                     TdApi.Error error = (TdApi.Error) object;
@@ -585,7 +585,7 @@ public void getUserFull(double userId, Promise promise) {
                 try {
                     latch.await();
                     pool.shutdown();
-                    String json = new Gson().toJson(users);
+                    String json = gson.toJson(users);
                     promise.resolve(json);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
@@ -618,7 +618,7 @@ public void getUserFull(double userId, Promise promise) {
 
             // send to TDLib
             client.send(request, object -> {
-                String json = new Gson().toJson(object);
+                String json = gson.toJson(object);
                 promise.resolve(json);
             });
 
@@ -659,7 +659,7 @@ public void searchPublicChat(String username, Promise promise) {
             if (object.getConstructor() == TdApi.Chat.CONSTRUCTOR) {
                 TdApi.Chat chat = (TdApi.Chat) object;
                 // Option A — send JSON string to JS:
-                String rawJson = new Gson().toJson(chat);
+                String rawJson = gson.toJson(chat);
                 promise.resolve(rawJson);
 
                 // Option B — (recommended) convert to WritableMap to return structured data:
@@ -673,7 +673,7 @@ public void searchPublicChat(String username, Promise promise) {
             }
 
             // Fallback — return whatever TDLib gave as JSON
-            promise.resolve(new Gson().toJson(object));
+            promise.resolve(gson.toJson(object));
         });
     } catch (Exception e) {
         promise.reject("SEARCH_PUBLIC_CHAT_EXCEPTION", e.getMessage() == null ? e.toString() : e.getMessage());
@@ -1268,7 +1268,7 @@ public void getChatMessagePosition(double chatId, double messageId, double threa
 
         client.send(request, object -> {
             WritableMap result = Arguments.createMap();
-            result.putString("raw", new Gson().toJson(object));
+            result.putString("raw", gson.toJson(object));
 
             if (object instanceof TdApi.Count) {
                 result.putInt("count", ((TdApi.Count) object).count);
@@ -1360,9 +1360,9 @@ public void addComment(
 
         client.send(sendMessage, result -> {
             if (result instanceof TdApi.Message) {
-                promise.resolve(new Gson().toJson(result));
+                promise.resolve(gson.toJson(result));
             } else {
-                promise.reject("SEND_FAILED", new Gson().toJson(result));
+                promise.reject("SEND_FAILED", gson.toJson(result));
             }
         });
 
@@ -1385,7 +1385,7 @@ public void addComment(
                     if (result instanceof TdApi.Ok) {
                         promise.resolve(true);
                     } else {
-                        promise.reject("DELETE_FAILED", new Gson().toJson(result));
+                        promise.reject("DELETE_FAILED", gson.toJson(result));
                     }
                 });
             } catch (Exception e) {
@@ -1672,121 +1672,22 @@ public void addComment(
     }
 
     private TdApi.Function convertMapToFunction(Map<String, Object> requestMap) throws Exception {
-        String type = (String) requestMap.get("@type");
-
-        switch (type) {
-            case "getAuthorizationState":
-                return new TdApi.GetAuthorizationState();
-
-            case "setAuthenticationPhoneNumber": {
-                String phoneNumber = (String) requestMap.get("phone_number");
-                return new TdApi.SetAuthenticationPhoneNumber(phoneNumber, null);
-            }
-
-            case "checkAuthenticationCode": {
-                String code = (String) requestMap.get("code");
-                return new TdApi.CheckAuthenticationCode(code);
-            }
-
-            case "close":
-                return new TdApi.Close();
-
-            case "getChat": {
-                long chatId = ((Number) requestMap.get("chat_id")).longValue();
-                return new TdApi.GetChat(chatId);
-            }
-
-            case "getMessage": {
-                long chatIdMsg = ((Number) requestMap.get("chat_id")).longValue();
-                long messageId = ((Number) requestMap.get("message_id")).longValue();
-                return new TdApi.GetMessage(chatIdMsg, messageId);
-            }
-
-            case "getChatHistory": {
-                long chatId = ((Number) requestMap.get("chat_id")).longValue();
-                long fromMessageId = ((Number) requestMap.get("from_message_id")).longValue();
-                int offset = ((Number) requestMap.get("offset")).intValue();
-                int limit = ((Number) requestMap.get("limit")).intValue();
-                boolean onlyLocal = (Boolean) requestMap.get("only_local");
-                return new TdApi.GetChatHistory(chatId, fromMessageId, offset, limit, onlyLocal);
-            }
-
-            case "searchPublicChat": {
-                String username = (String) requestMap.get("username");
-                return new TdApi.SearchPublicChat(username);
-            }
-
-            case "downloadFile": {
-                int fileId = ((Number) requestMap.get("file_id")).intValue();
-                Number priorityNum = (Number) requestMap.get("priority");
-                int priority = priorityNum != null ? priorityNum.intValue() : 1;
-                Number offsetNum = (Number) requestMap.get("offset");
-                long offset = offsetNum != null ? offsetNum.longValue() : 0L;
-                Number limitNum = (Number) requestMap.get("limit");
-                long limit = limitNum != null ? limitNum.longValue() : 0L;
-                Object syncObj = requestMap.get("synchronous");
-                boolean synchronous = syncObj instanceof Boolean ? (Boolean) syncObj : false;
-                return new TdApi.DownloadFile(fileId, priority, offset, limit, synchronous);
-            }
-
-            case "sendChatAction": {
-                long chatIdAction = ((Number) requestMap.get("chat_id")).longValue();
-                Object actionObj = requestMap.get("action");
-                TdApi.ChatAction action = new TdApi.ChatActionTyping();
-                if (actionObj instanceof Map) {
-                    @SuppressWarnings("unchecked")
-                    Map<String, Object> actMap = (Map<String, Object>) actionObj;
-                    String actType = (String) actMap.get("@type");
-                    if ("chatActionCancel".equals(actType)) action = new TdApi.ChatActionCancel();
-                    else if ("chatActionRecordingVoiceNote".equals(actType))
-                        action = new TdApi.ChatActionRecordingVoiceNote();
-                    else if ("chatActionUploadingPhoto".equals(actType))
-                        action = new TdApi.ChatActionUploadingPhoto(0);
-                    // default stays ChatActionTyping
-                }
-                // TdApi.SendChatAction(chatId, messageTopic, businessConnectionId, action)
-                return new TdApi.SendChatAction(chatIdAction, null, null, action);
-            }
-
-            case "viewMessages": {
-                long chatIdView = ((Number) requestMap.get("chat_id")).longValue();
-                Object idsObj = requestMap.get("message_ids");
-                long[] ids = new long[0];
-                if (idsObj instanceof java.util.List) {
-                    java.util.List<?> idsList = (java.util.List<?>) idsObj;
-                    ids = new long[idsList.size()];
-                    for (int i = 0; i < idsList.size(); i++) {
-                        ids[i] = ((Number) idsList.get(i)).longValue();
-                    }
-                }
-                Object forceObj = requestMap.get("force_read");
-                boolean forceRead = forceObj instanceof Boolean ? (Boolean) forceObj : false;
-                return new TdApi.ViewMessages(chatIdView, ids, new TdApi.MessageSourceChatHistory(), forceRead);
-            }
-
-            case "addMessageReaction": {
-                long cid = ((Number) requestMap.get("chat_id")).longValue();
-                long mid = ((Number) requestMap.get("message_id")).longValue();
-                @SuppressWarnings("unchecked")
-                Map<String, Object> rt = (Map<String, Object>) requestMap.get("reaction_type");
-                String emoji = rt != null ? (String) rt.get("emoji") : "";
-                return new TdApi.AddMessageReaction(
-                    cid, mid, new TdApi.ReactionTypeEmoji(emoji), false, false);
-            }
-
-            case "removeMessageReaction": {
-                long cid = ((Number) requestMap.get("chat_id")).longValue();
-                long mid = ((Number) requestMap.get("message_id")).longValue();
-                @SuppressWarnings("unchecked")
-                Map<String, Object> rt = (Map<String, Object>) requestMap.get("reaction_type");
-                String emoji = rt != null ? (String) rt.get("emoji") : "";
-                return new TdApi.RemoveMessageReaction(
-                    cid, mid, new TdApi.ReactionTypeEmoji(emoji));
-            }
-
-            default:
-                throw new UnsupportedOperationException("Unsupported TDLib function: " + type);
+        // Re-serialise the JS-side map through the canonical Gson, then deserialise
+        // into the typed TdApi.Function. Abstract field types are dispatched by the
+        // "@type" discriminator via TdApiAbstractTypeFactory in TdLibJson, so every
+        // TDLib function and every nested polymorphic field is handled without a
+        // hand-rolled switch — same fidelity iOS gets from td_json_client_send.
+        String json = gson.toJson(requestMap);
+        TdApi.Function fn;
+        try {
+            fn = gson.fromJson(json, TdApi.Function.class);
+        } catch (com.google.gson.JsonSyntaxException e) {
+            throw new IllegalArgumentException("Could not parse TDLib request: " + e.getMessage(), e);
         }
+        if (fn == null) {
+            String type = (String) requestMap.get("@type");
+            throw new UnsupportedOperationException("Unsupported TDLib function: " + type);
+        }
+        return fn;
     }
-
 }
