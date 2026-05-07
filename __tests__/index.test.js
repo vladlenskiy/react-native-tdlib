@@ -86,8 +86,8 @@ describe('react-native-tdlib', () => {
   });
 
   describe('method count', () => {
-    it('exports exactly 52 methods', () => {
-      expect(Object.keys(TdLib)).toHaveLength(52);
+    it('exports exactly 53 methods', () => {
+      expect(Object.keys(TdLib)).toHaveLength(53);
     });
   });
 
