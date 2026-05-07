@@ -5,6 +5,7 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Dimensions,
   FlatList,
   KeyboardAvoidingView,
@@ -38,6 +39,8 @@ interface Message {
   sender_id: {user_id?: number; chat_id?: number; '@type': string};
   date: number;
   content: any;
+  can_be_deleted_only_for_self?: boolean;
+  can_be_deleted_for_all_users?: boolean;
   reply_to?: {
     '@type': string;
     chat_id?: number;
@@ -63,6 +66,37 @@ interface ChatInfo {
 }
 
 const QUICK_REACTIONS = ['❤️', '👍', '👎', '🔥', '😂', '😢', '🙏'];
+
+const ENTITY_LABELS: Record<string, string> = {
+  textEntityTypeMention: '@ mention',
+  textEntityTypeMentionName: '@ mention',
+  textEntityTypeHashtag: '# hashtag',
+  textEntityTypeCashtag: '$ cashtag',
+  textEntityTypeBotCommand: '/ command',
+  textEntityTypeUrl: '🔗 link',
+  textEntityTypeEmailAddress: '✉ email',
+  textEntityTypePhoneNumber: '☎ phone',
+};
+
+const summarizeEntities = (raw: string): string[] => {
+  let parsed: any;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return [];
+  }
+  const entities: any[] = parsed?.entities ?? [];
+  const counts = new Map<string, number>();
+  for (const e of entities) {
+    const t = e?.type?.['@type'];
+    const label = ENTITY_LABELS[t];
+    if (!label) continue;
+    counts.set(label, (counts.get(label) ?? 0) + 1);
+  }
+  return Array.from(counts.entries()).map(([label, n]) =>
+    n > 1 ? `${label} ×${n}` : label,
+  );
+};
 const VIEW_BATCH_MS = 500;
 const TYPING_TIMEOUT_MS = 5000;
 
@@ -84,11 +118,15 @@ const ChatScreen: React.FC<Props> = ({chat, meId, onBack}) => {
     (chat as any).last_read_outbox_message_id ?? 0,
   );
 
+  const [entityChips, setEntityChips] = useState<string[]>([]);
+
   const listRef = useRef<FlatList<Message>>(null);
   const viewedIdsRef = useRef<Set<number>>(new Set());
   const pendingViewRef = useRef<Set<number>>(new Set());
   const viewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typingTimersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+  const entitiesTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const entitiesReqIdRef = useRef(0);
 
   const width = Dimensions.get('window').width;
 
@@ -148,6 +186,7 @@ const ChatScreen: React.FC<Props> = ({chat, meId, onBack}) => {
     loadHistory(0);
     return () => {
       if (viewTimerRef.current) clearTimeout(viewTimerRef.current);
+      if (entitiesTimerRef.current) clearTimeout(entitiesTimerRef.current);
       typingTimersRef.current.forEach(t => clearTimeout(t));
       typingTimersRef.current.clear();
       TdLib.closeChat(chat.id).catch(() => {});
@@ -182,6 +221,14 @@ const ChatScreen: React.FC<Props> = ({chat, meId, onBack}) => {
     setMessages(prev =>
       prev.map(m => (m.id === mid ? {...m, content: newContent} : m)),
     );
+  });
+
+  useTdUpdate('updateDeleteMessages', data => {
+    if (data?.chat_id !== chat.id) return;
+    const ids: number[] = Array.isArray(data?.message_ids) ? data.message_ids : [];
+    if (ids.length === 0) return;
+    const idSet = new Set(ids);
+    setMessages(prev => prev.filter(m => !idSet.has(m.id)));
   });
 
   useTdUpdate('updateChatReadOutbox', data => {
@@ -225,6 +272,7 @@ const ChatScreen: React.FC<Props> = ({chat, meId, onBack}) => {
     try {
       await TdLib.sendMessage(chat.id, trimmed, reply?.id);
       setText('');
+      setEntityChips([]);
     } catch {
       // restore reply on failure so user can retry
       if (reply) setReplyingTo(reply);
@@ -247,6 +295,22 @@ const ChatScreen: React.FC<Props> = ({chat, meId, onBack}) => {
           action: {'@type': 'chatActionTyping'},
         }).catch(() => {});
       }
+
+      if (entitiesTimerRef.current) clearTimeout(entitiesTimerRef.current);
+      if (!t.trim()) {
+        setEntityChips([]);
+        return;
+      }
+      const reqId = ++entitiesReqIdRef.current;
+      entitiesTimerRef.current = setTimeout(async () => {
+        try {
+          const raw = await TdLib.getTextEntities(t);
+          if (reqId !== entitiesReqIdRef.current) return;
+          setEntityChips(summarizeEntities(raw));
+        } catch {
+          if (reqId === entitiesReqIdRef.current) setEntityChips([]);
+        }
+      }, 200);
     },
     [chat.id],
   );
@@ -292,6 +356,50 @@ const ChatScreen: React.FC<Props> = ({chat, meId, onBack}) => {
     setActionOn(null);
     setReplyingTo(msg);
   }, []);
+
+  const deleteMessage = useCallback(
+    async (msg: Message, revoke: boolean) => {
+      try {
+        await TdLib.deleteMessages(chat.id, [msg.id], revoke);
+      } catch (e: any) {
+        Alert.alert('Failed to delete', e?.message ?? String(e));
+      }
+    },
+    [chat.id],
+  );
+
+  const askDelete = useCallback(
+    (msg: Message) => {
+      setActionOn(null);
+      const canRevoke = msg.can_be_deleted_for_all_users ?? false;
+      const canSelf = msg.can_be_deleted_only_for_self ?? false;
+      if (!canRevoke && !canSelf) {
+        Alert.alert('Cannot delete', 'This message cannot be deleted.');
+        return;
+      }
+      const buttons: Array<{
+        text: string;
+        style?: 'cancel' | 'destructive' | 'default';
+        onPress?: () => void;
+      }> = [{text: 'Cancel', style: 'cancel'}];
+      if (canSelf) {
+        buttons.push({
+          text: canRevoke ? 'Delete for me' : 'Delete',
+          style: 'destructive',
+          onPress: () => deleteMessage(msg, false),
+        });
+      }
+      if (canRevoke) {
+        buttons.push({
+          text: 'Delete for everyone',
+          style: 'destructive',
+          onPress: () => deleteMessage(msg, true),
+        });
+      }
+      Alert.alert('Delete message?', undefined, buttons);
+    },
+    [deleteMessage],
+  );
 
   const messagesById = useMemo(() => {
     const m = new Map<number, Message>();
@@ -444,6 +552,16 @@ const ChatScreen: React.FC<Props> = ({chat, meId, onBack}) => {
         </View>
       ) : null}
 
+      {entityChips.length > 0 ? (
+        <View style={styles.entitiesBar}>
+          {entityChips.map(chip => (
+            <View key={chip} style={styles.entityChip}>
+              <Text style={styles.entityChipText}>{chip}</Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+
       <View style={styles.inputBar}>
         <TextInput
           value={text}
@@ -488,6 +606,14 @@ const ChatScreen: React.FC<Props> = ({chat, meId, onBack}) => {
               onPress={() => actionOn && startReply(actionOn)}>
               <Text style={styles.actionEmoji}>↩︎</Text>
               <Text style={styles.actionLabel}>Reply</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.actionBtn}
+              onPress={() => actionOn && askDelete(actionOn)}>
+              <Text style={[styles.actionEmoji, styles.actionDeleteEmoji]}>🗑</Text>
+              <Text style={[styles.actionLabel, styles.actionDeleteLabel]}>
+                Delete
+              </Text>
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -781,6 +907,26 @@ const styles = StyleSheet.create({
     borderTopColor: colors.divider,
     alignItems: 'flex-end',
   },
+  entitiesBar: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 12,
+    paddingTop: 6,
+    paddingBottom: 2,
+    backgroundColor: colors.background,
+  },
+  entityChip: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    marginRight: 6,
+    marginBottom: 4,
+  },
+  entityChipText: {
+    fontSize: 11,
+    color: colors.textSecondary,
+  },
   input: {
     flex: 1,
     backgroundColor: colors.surface,
@@ -824,6 +970,8 @@ const styles = StyleSheet.create({
   actionBtn: {alignItems: 'center', justifyContent: 'center', padding: 14, minWidth: 80},
   actionEmoji: {fontSize: 22},
   actionLabel: {fontSize: 12, color: colors.textSecondary, marginTop: 4, fontWeight: '600'},
+  actionDeleteEmoji: {fontSize: 20},
+  actionDeleteLabel: {color: '#d33'},
 
   reactionPicker: {
     flexDirection: 'row',
