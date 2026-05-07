@@ -178,6 +178,15 @@ const res = await TdLib.td_json_client_execute({
 const entities = JSON.parse(res).entities;
 ```
 
+Or use the dedicated helper:
+
+```ts
+const res = await TdLib.getTextEntities(
+  'Check @telegram and https://telegram.org',
+);
+const entities = JSON.parse(res).entities;
+```
+
 ## Calling anything TDLib supports
 
 If a function isn't yet wrapped with a dedicated method, use `td_json_client_send` — it's fire-and-forget, and the response (or update) arrives via the usual `tdlib-update` stream:

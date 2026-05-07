@@ -308,6 +308,35 @@ RCT_EXPORT_METHOD(td_json_client_execute:(NSDictionary *)request
     }
 }
 
+RCT_EXPORT_METHOD(getTextEntities:(NSString *)text
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    @try {
+        NSDictionary *request = @{
+            @"@type": @"getTextEntities",
+            @"text": text ?: @""
+        };
+
+        NSError *error = nil;
+        NSData *requestData = [NSJSONSerialization dataWithJSONObject:request options:0 error:&error];
+        if (error) {
+            reject(@"JSON_SERIALIZATION_ERROR", error.localizedDescription, nil);
+            return;
+        }
+
+        NSString *requestString = [[NSString alloc] initWithData:requestData encoding:NSUTF8StringEncoding];
+        const char *response = td_json_client_execute(NULL, [requestString UTF8String]);
+
+        if (response != NULL) {
+            resolve([NSString stringWithUTF8String:response]);
+        } else {
+            reject(@"GET_TEXT_ENTITIES_ERROR", @"No response from TDLib", nil);
+        }
+    } @catch (NSException *exception) {
+        reject(@"GET_TEXT_ENTITIES_EXCEPTION", exception.reason, nil);
+    }
+}
+
 RCT_EXPORT_METHOD(td_json_client_send:(NSDictionary *)request
                   resolve:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject) {

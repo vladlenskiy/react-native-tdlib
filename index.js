@@ -14,6 +14,7 @@ export default {
   td_json_client_execute: TdLibModule.td_json_client_execute,
   td_json_client_send: TdLibModule.td_json_client_send,
   td_json_client_receive: TdLibModule.td_json_client_receive,
+  getTextEntities: TdLibModule.getTextEntities,
 
   // Auth
   startTdLib: TdLibModule.startTdLib,
