@@ -35,7 +35,7 @@ export function Hero() {
               TDLib
             </a>{" "}
             under the hood. Prebuilt binaries for both platforms, a single
-            typed API for all 52 methods, and every Telegram update streaming
+            typed API for all 53 methods, and every Telegram update streaming
             live through <span className="font-mono text-sm">NativeEventEmitter</span>.
           </p>
 
