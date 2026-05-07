@@ -741,7 +741,7 @@ function renderFormattedText(
     .filter((e: any) => typeof e?.offset === 'number' && typeof e?.length === 'number')
     .sort((a: any, b: any) => a.offset - b.offset);
 
-  if (!entities.length) return text;
+  if (!entities.length) return <Text style={baseStyle}>{text}</Text>;
 
   const nodes: React.ReactNode[] = [];
   let cursor = 0;
