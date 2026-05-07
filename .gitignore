@@ -60,3 +60,9 @@ buck-out/
 # Logs / tmp
 *.log
 .DS_Store
+
+# Local-only credentials for the example app
+example/.env
+
+# Claude agent worktrees
+.claude/

@@ -91,6 +91,9 @@ A full Telegram-like reference client ships under [`example/`](./example): login
 git clone https://github.com/vladlenskiy/react-native-tdlib.git
 cd react-native-tdlib/example && npm install
 cd ios && pod install && cd ..
+# Provide your TDLib api_id / api_hash from https://my.telegram.org/apps:
+cp .env.example .env
+$EDITOR .env
 npx react-native run-ios       # or run-android
 ```
 
