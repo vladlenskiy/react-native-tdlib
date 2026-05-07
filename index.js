@@ -49,6 +49,8 @@ export default {
   getChatMessagePosition: TdLibModule.getChatMessagePosition,
   getMessageThread: TdLibModule.getMessageThread,
   getMessageThreadHistory: TdLibModule.getMessageThreadHistory,
+  deleteMessages: (chatId, messageIds, revoke = true) =>
+    TdLibModule.deleteMessages(chatId, messageIds, revoke),
 
   // Comments
   addComment: TdLibModule.addComment,

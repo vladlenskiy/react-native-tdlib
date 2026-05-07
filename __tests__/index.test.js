@@ -32,6 +32,7 @@ const mockMethods = {
   getChatMessagePosition: jest.fn(),
   getMessageThread: jest.fn(),
   getMessageThreadHistory: jest.fn(),
+  deleteMessages: jest.fn(),
   addComment: jest.fn(),
   deleteComment: jest.fn(),
   addMessageReaction: jest.fn(),
@@ -84,8 +85,8 @@ describe('react-native-tdlib', () => {
   });
 
   describe('method count', () => {
-    it('exports exactly 51 methods', () => {
-      expect(Object.keys(TdLib)).toHaveLength(51);
+    it('exports exactly 52 methods', () => {
+      expect(Object.keys(TdLib)).toHaveLength(52);
     });
   });
 
@@ -160,6 +161,16 @@ describe('react-native-tdlib', () => {
     it('delegates getChats with limit', () => {
       TdLib.getChats(20);
       expect(mockMethods.getChats).toHaveBeenCalledWith(20);
+    });
+
+    it('delegates deleteMessages with default revoke=true', () => {
+      TdLib.deleteMessages(12345, [111, 222]);
+      expect(mockMethods.deleteMessages).toHaveBeenCalledWith(12345, [111, 222], true);
+    });
+
+    it('delegates deleteMessages with explicit revoke flag', () => {
+      TdLib.deleteMessages(12345, [111], false);
+      expect(mockMethods.deleteMessages).toHaveBeenCalledWith(12345, [111], false);
     });
   });
 });

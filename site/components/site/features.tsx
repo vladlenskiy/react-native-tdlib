@@ -133,7 +133,7 @@ export function Features() {
             title="Load, send, react — one-liners on both platforms."
             body={
               <>
-                All 51 methods — chats, messages, reactions, replies, files,
+                All 52 methods — chats, messages, reactions, replies, files,
                 options, users — are wrapped, typed, and tested on iOS and
                 Android. Same signatures, same error codes, same JSON shapes.
               </>
@@ -192,7 +192,7 @@ export function Features() {
             title="The whole TDLib surface is one call away."
             body={
               <>
-                51 methods are wrapped with typed signatures. Everything else —{" "}
+                52 methods are wrapped with typed signatures. Everything else —{" "}
                 <span className="font-mono text-foreground">setChatTitle</span>,{" "}
                 <span className="font-mono text-foreground">searchMessages</span>,{" "}
                 <span className="font-mono text-foreground">setProfilePhoto</span>,

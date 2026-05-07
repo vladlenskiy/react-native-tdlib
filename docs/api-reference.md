@@ -62,6 +62,7 @@ interface UserDetails {
 | `getChatMessagePosition` | `(chatId, messageId, threadId)` | `Promise<{raw: string, count?: number}>` |
 | `getMessageThread` | `(chatId, messageId)` | `Promise<TdRawResult>` |
 | `getMessageThreadHistory` | `(chatId, threadId, fromMessageId, offset, limit)` | `Promise<TdRawResult>` |
+| `deleteMessages` | `(chatId, messageIds, revoke?)` | `Promise<boolean>` — deletes one or more messages; `revoke` defaults to `true` (delete for everyone when TDLib allows it). |
 
 ## Comments (channel / forum threads)
 

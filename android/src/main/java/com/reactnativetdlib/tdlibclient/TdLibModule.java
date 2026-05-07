@@ -1393,6 +1393,40 @@ public void addComment(
             }
         }
 
+        @ReactMethod
+        public void deleteMessages(double chatId, ReadableArray messageIds, boolean revoke, Promise promise) {
+            try {
+                if (client == null) {
+                    promise.reject("CLIENT_NOT_INITIALIZED", "TDLib client is not initialized");
+                    return;
+                }
+
+                long[] ids = new long[messageIds.size()];
+                for (int i = 0; i < messageIds.size(); i++) {
+                    ids[i] = (long) messageIds.getDouble(i);
+                }
+
+                TdApi.DeleteMessages deleteMessages = new TdApi.DeleteMessages(
+                    (long) chatId,
+                    ids,
+                    revoke
+                );
+
+                client.send(deleteMessages, result -> {
+                    if (result instanceof TdApi.Ok) {
+                        promise.resolve(true);
+                    } else if (result instanceof TdApi.Error) {
+                        TdApi.Error error = (TdApi.Error) result;
+                        promise.reject("DELETE_MESSAGES_ERROR", error.message);
+                    } else {
+                        promise.reject("DELETE_MESSAGES_FAILED", "Unexpected response from TDLib");
+                    }
+                });
+            } catch (Exception e) {
+                promise.reject("DELETE_MESSAGES_ERROR", e.getMessage());
+            }
+        }
+
 
 
 
