@@ -1734,7 +1734,8 @@ public void addComment(
                     }
                 }
                 TdApi.MessageTopic topicId = messageTopicFromMap(requestMap.get("topic_id"));
-                return new TdApi.SendMessage(chatId, topicId, replyTo, null, null, content);
+                TdApi.MessageSendOptions options = messageSendOptionsFromMap(requestMap.get("options"));
+                return new TdApi.SendMessage(chatId, topicId, replyTo, options, null, content);
             }
 
             case "downloadFile": {
@@ -1922,6 +1923,61 @@ public void addComment(
             case "textEntityTypeMediaTimestamp": {
                 Number ts = (Number) typeMap.get("media_timestamp");
                 return new TdApi.TextEntityTypeMediaTimestamp(ts != null ? ts.intValue() : 0);
+            }
+            default:
+                return null;
+        }
+    }
+
+    private TdApi.MessageSendOptions messageSendOptionsFromMap(Object optionsObj) {
+        if (!(optionsObj instanceof Map)) return null;
+        @SuppressWarnings("unchecked")
+        Map<String, Object> m = (Map<String, Object>) optionsObj;
+        TdApi.MessageSendOptions o = new TdApi.MessageSendOptions();
+        Object disableNotif = m.get("disable_notification");
+        if (disableNotif instanceof Boolean) o.disableNotification = (Boolean) disableNotif;
+        Object fromBg = m.get("from_background");
+        if (fromBg instanceof Boolean) o.fromBackground = (Boolean) fromBg;
+        Object protect = m.get("protect_content");
+        if (protect instanceof Boolean) o.protectContent = (Boolean) protect;
+        Object allowPaid = m.get("allow_paid_broadcast");
+        if (allowPaid instanceof Boolean) o.allowPaidBroadcast = (Boolean) allowPaid;
+        Object updateOrder = m.get("update_order_of_installed_sticker_sets");
+        if (updateOrder instanceof Boolean) o.updateOrderOfInstalledStickerSets = (Boolean) updateOrder;
+        Object onlyPreview = m.get("only_preview");
+        if (onlyPreview instanceof Boolean) o.onlyPreview = (Boolean) onlyPreview;
+        Number paidStars = (Number) m.get("paid_message_star_count");
+        if (paidStars != null) o.paidMessageStarCount = paidStars.longValue();
+        Number effectId = (Number) m.get("effect_id");
+        if (effectId != null) o.effectId = effectId.longValue();
+        Number sendingId = (Number) m.get("sending_id");
+        if (sendingId != null) o.sendingId = sendingId.intValue();
+        o.schedulingState = messageSchedulingStateFromMap(m.get("scheduling_state"));
+        return o;
+    }
+
+    private TdApi.MessageSchedulingState messageSchedulingStateFromMap(Object stateObj) {
+        if (!(stateObj instanceof Map)) return null;
+        @SuppressWarnings("unchecked")
+        Map<String, Object> m = (Map<String, Object>) stateObj;
+        String t = (String) m.get("@type");
+        if (t == null) return null;
+        switch (t) {
+            case "messageSchedulingStateSendAtDate": {
+                Number sendDate = (Number) m.get("send_date");
+                Number repeat = (Number) m.get("repeat_period");
+                return new TdApi.MessageSchedulingStateSendAtDate(
+                    sendDate != null ? sendDate.intValue() : 0,
+                    repeat != null ? repeat.intValue() : 0
+                );
+            }
+            case "messageSchedulingStateSendWhenOnline":
+                return new TdApi.MessageSchedulingStateSendWhenOnline();
+            case "messageSchedulingStateSendWhenVideoProcessed": {
+                Number sendDate = (Number) m.get("send_date");
+                return new TdApi.MessageSchedulingStateSendWhenVideoProcessed(
+                    sendDate != null ? sendDate.intValue() : 0
+                );
             }
             default:
                 return null;
