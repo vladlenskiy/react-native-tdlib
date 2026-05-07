@@ -9,12 +9,14 @@ import {
   Dimensions,
   FlatList,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
+  TextStyle,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -371,24 +373,23 @@ const ChatScreen: React.FC<Props> = ({chat, meId, onBack}) => {
   const askDelete = useCallback(
     (msg: Message) => {
       setActionOn(null);
-      const canRevoke = msg.can_be_deleted_for_all_users ?? false;
-      const canSelf = msg.can_be_deleted_only_for_self ?? false;
-      if (!canRevoke && !canSelf) {
-        Alert.alert('Cannot delete', 'This message cannot be deleted.');
-        return;
-      }
+      // Trust TDLib to reject if the message truly cannot be deleted —
+      // the can_be_deleted_* flags are omitted from JSON when false, so
+      // gating on them client-side is unreliable.
+      const canRevoke =
+        msg.can_be_deleted_for_all_users ?? msg.is_outgoing ?? false;
       const buttons: Array<{
         text: string;
         style?: 'cancel' | 'destructive' | 'default';
         onPress?: () => void;
-      }> = [{text: 'Cancel', style: 'cancel'}];
-      if (canSelf) {
-        buttons.push({
+      }> = [
+        {text: 'Cancel', style: 'cancel'},
+        {
           text: canRevoke ? 'Delete for me' : 'Delete',
           style: 'destructive',
           onPress: () => deleteMessage(msg, false),
-        });
-      }
+        },
+      ];
       if (canRevoke) {
         buttons.push({
           text: 'Delete for everyone',
@@ -446,7 +447,7 @@ const ChatScreen: React.FC<Props> = ({chat, meId, onBack}) => {
               maxWidth={width * 0.68}
             />
           ) : (
-            <Text style={styles.bubbleText}>{renderContent(item.content)}</Text>
+            renderMessageBody(item.content, styles.bubbleText)
           )}
 
           {reactions.length > 0 && (
@@ -729,6 +730,109 @@ function describeType(t: any): string {
     default:
       return t['@type'] ?? '';
   }
+}
+
+function renderFormattedText(
+  formatted: {text?: string; entities?: any[]} | undefined,
+  baseStyle: TextStyle,
+): React.ReactNode {
+  const text = formatted?.text ?? '';
+  const entities = (formatted?.entities ?? [])
+    .filter((e: any) => typeof e?.offset === 'number' && typeof e?.length === 'number')
+    .sort((a: any, b: any) => a.offset - b.offset);
+
+  if (!entities.length) return text;
+
+  const nodes: React.ReactNode[] = [];
+  let cursor = 0;
+  let key = 0;
+  for (const e of entities) {
+    if (e.offset < cursor) continue; // skip overlapping
+    if (e.offset > cursor) {
+      nodes.push(text.substring(cursor, e.offset));
+    }
+    const slice = text.substring(e.offset, e.offset + e.length);
+    const t = e.type?.['@type'] as string | undefined;
+    const style = entityStyle(t);
+    const onPress = entityPressHandler(e, slice);
+    nodes.push(
+      <Text
+        key={`e${key++}`}
+        style={style}
+        onPress={onPress}
+        suppressHighlighting={!onPress}>
+        {slice}
+      </Text>,
+    );
+    cursor = e.offset + e.length;
+  }
+  if (cursor < text.length) nodes.push(text.substring(cursor));
+  return <Text style={baseStyle}>{nodes}</Text>;
+}
+
+function entityStyle(type: string | undefined): TextStyle | undefined {
+  switch (type) {
+    case 'textEntityTypeMention':
+    case 'textEntityTypeMentionName':
+    case 'textEntityTypeHashtag':
+    case 'textEntityTypeCashtag':
+    case 'textEntityTypeBotCommand':
+      return {color: colors.primary};
+    case 'textEntityTypeUrl':
+    case 'textEntityTypeTextUrl':
+    case 'textEntityTypeEmailAddress':
+    case 'textEntityTypePhoneNumber':
+      return {color: colors.primary, textDecorationLine: 'underline'};
+    case 'textEntityTypeBold':
+      return {fontWeight: '700'};
+    case 'textEntityTypeItalic':
+      return {fontStyle: 'italic'};
+    case 'textEntityTypeUnderline':
+      return {textDecorationLine: 'underline'};
+    case 'textEntityTypeStrikethrough':
+      return {textDecorationLine: 'line-through'};
+    case 'textEntityTypeCode':
+    case 'textEntityTypePre':
+    case 'textEntityTypePreCode':
+      return {
+        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+        backgroundColor: colors.surface,
+      };
+    default:
+      return undefined;
+  }
+}
+
+function entityPressHandler(
+  entity: any,
+  slice: string,
+): (() => void) | undefined {
+  const t = entity?.type?.['@type'] as string | undefined;
+  switch (t) {
+    case 'textEntityTypeUrl':
+      return () => Linking.openURL(slice).catch(() => {});
+    case 'textEntityTypeTextUrl': {
+      const url = entity?.type?.url ?? slice;
+      return () => Linking.openURL(url).catch(() => {});
+    }
+    case 'textEntityTypeEmailAddress':
+      return () => Linking.openURL(`mailto:${slice}`).catch(() => {});
+    case 'textEntityTypePhoneNumber':
+      return () =>
+        Linking.openURL(`tel:${slice.replace(/\s+/g, '')}`).catch(() => {});
+    default:
+      return undefined;
+  }
+}
+
+function renderMessageBody(
+  content: any,
+  baseStyle: TextStyle,
+): React.ReactNode {
+  if (content?.['@type'] === 'messageText') {
+    return renderFormattedText(content.text, baseStyle);
+  }
+  return <Text style={baseStyle}>{renderContent(content)}</Text>;
 }
 
 function renderContent(content: any): string {
