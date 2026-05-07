@@ -6,10 +6,19 @@
 import {useEffect, useRef, useState} from 'react';
 import {NativeEventEmitter, NativeModules} from 'react-native';
 import TdLib, {TdLibParameters} from 'react-native-tdlib';
+import {TDLIB_API_ID, TDLIB_API_HASH} from '@env';
+
+const apiId = Number(TDLIB_API_ID);
+if (!apiId || !TDLIB_API_HASH || TDLIB_API_HASH === 'YOUR_API_HASH_HERE') {
+  throw new Error(
+    'Missing TDLib credentials. Copy example/.env.example to example/.env ' +
+      'and fill in TDLIB_API_ID / TDLIB_API_HASH from https://my.telegram.org/apps.',
+  );
+}
 
 export const TDLIB_PARAMETERS: TdLibParameters = {
-  api_id: 0,
-  api_hash: 'YOUR_API_HASH_HERE',
+  api_id: apiId,
+  api_hash: TDLIB_API_HASH,
   device_model: 'React Native TDLib Demo',
   system_version: '1.0',
   application_version: '1.0',
