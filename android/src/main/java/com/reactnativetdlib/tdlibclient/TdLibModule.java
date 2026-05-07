@@ -1733,7 +1733,8 @@ public void addComment(
                         }
                     }
                 }
-                return new TdApi.SendMessage(chatId, null, replyTo, null, null, content);
+                TdApi.MessageTopic topicId = messageTopicFromMap(requestMap.get("topic_id"));
+                return new TdApi.SendMessage(chatId, topicId, replyTo, null, null, content);
             }
 
             case "downloadFile": {
@@ -1826,7 +1827,9 @@ public void addComment(
 
         if ("inputMessageText".equals(type)) {
             TdApi.FormattedText text = formattedTextFromMap(asMap(contentMap.get("text")));
-            return new TdApi.InputMessageText(text, null, true);
+            Object clearObj = contentMap.get("clear_draft");
+            boolean clearDraft = clearObj instanceof Boolean ? (Boolean) clearObj : false;
+            return new TdApi.InputMessageText(text, null, clearDraft);
         }
 
         throw new UnsupportedOperationException("Unsupported input message content: " + type);
@@ -1856,7 +1859,101 @@ public void addComment(
     private TdApi.FormattedText formattedTextFromMap(Map<String, Object> textMap) {
         Object textObj = textMap.get("text");
         String text = textObj instanceof String ? (String) textObj : "";
-        return new TdApi.FormattedText(text, new TdApi.TextEntity[0]);
+        TdApi.TextEntity[] entities = textEntitiesFromList(textMap.get("entities"));
+        return new TdApi.FormattedText(text, entities);
+    }
+
+    private TdApi.TextEntity[] textEntitiesFromList(Object entitiesObj) {
+        if (!(entitiesObj instanceof java.util.List)) return new TdApi.TextEntity[0];
+        java.util.List<?> list = (java.util.List<?>) entitiesObj;
+        java.util.ArrayList<TdApi.TextEntity> out = new java.util.ArrayList<>(list.size());
+        for (Object item : list) {
+            if (!(item instanceof Map)) continue;
+            @SuppressWarnings("unchecked")
+            Map<String, Object> entMap = (Map<String, Object>) item;
+            Number offsetNum = (Number) entMap.get("offset");
+            Number lengthNum = (Number) entMap.get("length");
+            if (offsetNum == null || lengthNum == null) continue;
+            TdApi.TextEntityType type = textEntityTypeFromMap(asMap(entMap.get("type")));
+            if (type == null) continue;
+            out.add(new TdApi.TextEntity(offsetNum.intValue(), lengthNum.intValue(), type));
+        }
+        return out.toArray(new TdApi.TextEntity[0]);
+    }
+
+    private TdApi.TextEntityType textEntityTypeFromMap(Map<String, Object> typeMap) {
+        String t = (String) typeMap.get("@type");
+        if (t == null) return null;
+        switch (t) {
+            case "textEntityTypeMention":          return new TdApi.TextEntityTypeMention();
+            case "textEntityTypeHashtag":          return new TdApi.TextEntityTypeHashtag();
+            case "textEntityTypeCashtag":          return new TdApi.TextEntityTypeCashtag();
+            case "textEntityTypeBotCommand":       return new TdApi.TextEntityTypeBotCommand();
+            case "textEntityTypeUrl":              return new TdApi.TextEntityTypeUrl();
+            case "textEntityTypeEmailAddress":     return new TdApi.TextEntityTypeEmailAddress();
+            case "textEntityTypePhoneNumber":      return new TdApi.TextEntityTypePhoneNumber();
+            case "textEntityTypeBankCardNumber":   return new TdApi.TextEntityTypeBankCardNumber();
+            case "textEntityTypeBold":             return new TdApi.TextEntityTypeBold();
+            case "textEntityTypeItalic":           return new TdApi.TextEntityTypeItalic();
+            case "textEntityTypeUnderline":        return new TdApi.TextEntityTypeUnderline();
+            case "textEntityTypeStrikethrough":    return new TdApi.TextEntityTypeStrikethrough();
+            case "textEntityTypeSpoiler":          return new TdApi.TextEntityTypeSpoiler();
+            case "textEntityTypeCode":             return new TdApi.TextEntityTypeCode();
+            case "textEntityTypePre":              return new TdApi.TextEntityTypePre();
+            case "textEntityTypeBlockQuote":       return new TdApi.TextEntityTypeBlockQuote();
+            case "textEntityTypeExpandableBlockQuote":
+                return new TdApi.TextEntityTypeExpandableBlockQuote();
+            case "textEntityTypePreCode": {
+                String language = (String) typeMap.get("language");
+                return new TdApi.TextEntityTypePreCode(language != null ? language : "");
+            }
+            case "textEntityTypeTextUrl": {
+                String url = (String) typeMap.get("url");
+                return new TdApi.TextEntityTypeTextUrl(url != null ? url : "");
+            }
+            case "textEntityTypeMentionName": {
+                Number userId = (Number) typeMap.get("user_id");
+                return new TdApi.TextEntityTypeMentionName(userId != null ? userId.longValue() : 0L);
+            }
+            case "textEntityTypeCustomEmoji": {
+                Number id = (Number) typeMap.get("custom_emoji_id");
+                return new TdApi.TextEntityTypeCustomEmoji(id != null ? id.longValue() : 0L);
+            }
+            case "textEntityTypeMediaTimestamp": {
+                Number ts = (Number) typeMap.get("media_timestamp");
+                return new TdApi.TextEntityTypeMediaTimestamp(ts != null ? ts.intValue() : 0);
+            }
+            default:
+                return null;
+        }
+    }
+
+    private TdApi.MessageTopic messageTopicFromMap(Object topicObj) {
+        if (!(topicObj instanceof Map)) return null;
+        @SuppressWarnings("unchecked")
+        Map<String, Object> topicMap = (Map<String, Object>) topicObj;
+        String t = (String) topicMap.get("@type");
+        if (t == null) return null;
+        switch (t) {
+            case "messageTopicThread": {
+                Number id = (Number) topicMap.get("message_thread_id");
+                return new TdApi.MessageTopicThread(id != null ? id.longValue() : 0L);
+            }
+            case "messageTopicForum": {
+                Number id = (Number) topicMap.get("forum_topic_id");
+                return new TdApi.MessageTopicForum(id != null ? id.intValue() : 0);
+            }
+            case "messageTopicDirectMessages": {
+                Number id = (Number) topicMap.get("direct_messages_chat_topic_id");
+                return new TdApi.MessageTopicDirectMessages(id != null ? id.longValue() : 0L);
+            }
+            case "messageTopicSavedMessages": {
+                Number id = (Number) topicMap.get("saved_messages_topic_id");
+                return new TdApi.MessageTopicSavedMessages(id != null ? id.longValue() : 0L);
+            }
+            default:
+                return null;
+        }
     }
 
 }
