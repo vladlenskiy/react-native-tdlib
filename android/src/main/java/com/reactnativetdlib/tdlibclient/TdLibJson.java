@@ -5,11 +5,19 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
+import com.google.gson.TypeAdapter;
+import com.google.gson.TypeAdapterFactory;
+import com.google.gson.reflect.TypeToken;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 
 import org.drinkless.tdlib.TdApi;
 
+import java.io.IOException;
+import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
 import java.util.Map;
 
@@ -17,6 +25,7 @@ import java.util.Map;
  * Gson configured to match TDLib's native JSON shape:
  *  - snake_case field names
  *  - every TdApi.Object gets an "@type" property with the lowercase-first-letter class name
+ *  - reading abstract TdApi types resolves the concrete subclass from "@type"
  *
  * Gives platform parity with iOS, which uses TDLib's native JSON directly.
  */
@@ -26,6 +35,7 @@ public final class TdLibJson {
     public static final Gson GSON = new GsonBuilder()
         .setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
         .registerTypeHierarchyAdapter(TdApi.Object.class, new TdApiSerializer())
+        .registerTypeAdapterFactory(new TdApiAbstractTypeFactory())
         .disableHtmlEscaping()
         .create();
 
@@ -93,6 +103,54 @@ public final class TdLibJson {
                     out.add(jsonKey, ja);
                 }
             }
+        }
+    }
+
+    /**
+     * For abstract TdApi types, picks the concrete subclass at read time using the @type
+     * discriminator. Concrete types fall through to Gson's default reflection adapter.
+     * Mirrors the iOS path, where TDLib's own JSON parser dispatches by @type.
+     */
+    private static final class TdApiAbstractTypeFactory implements TypeAdapterFactory {
+        @Override
+        public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> typeToken) {
+            Class<? super T> raw = typeToken.getRawType();
+            if (!TdApi.Object.class.isAssignableFrom(raw)) return null;
+            if (!Modifier.isAbstract(raw.getModifiers())) return null;
+
+            final TypeAdapter<T> delegate = gson.getDelegateAdapter(this, typeToken);
+            return new TypeAdapter<T>() {
+                @Override
+                public void write(JsonWriter out, T value) throws IOException {
+                    // The serialization side is handled by the TdApi.Object hierarchy
+                    // serializer; for that path Gson never asks our factory to write.
+                    // The delegate is here for completeness if the factory ever fires.
+                    delegate.write(out, value);
+                }
+
+                @Override
+                public T read(JsonReader in) throws IOException {
+                    JsonElement el = JsonParser.parseReader(in);
+                    if (!el.isJsonObject()) return null;
+                    JsonObject obj = el.getAsJsonObject();
+                    JsonElement typeEl = obj.get("@type");
+                    if (typeEl == null) return null;
+                    String typeName = typeEl.getAsString();
+                    String className = "org.drinkless.tdlib.TdApi$"
+                        + Character.toUpperCase(typeName.charAt(0))
+                        + typeName.substring(1);
+                    try {
+                        Class<?> concrete = Class.forName(className);
+                        if (!raw.isAssignableFrom(concrete)) return null;
+                        @SuppressWarnings("unchecked")
+                        TypeAdapter<T> concreteAdapter =
+                            (TypeAdapter<T>) gson.getAdapter(TypeToken.get(concrete));
+                        return concreteAdapter.fromJsonTree(obj);
+                    } catch (ClassNotFoundException e) {
+                        return null;
+                    }
+                }
+            };
         }
     }
 
