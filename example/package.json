@@ -15,7 +15,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.12.9",
-    "@babel/runtime": "^7.12.5",
+    "@babel/runtime": "^7.26.10",
     "@react-native-community/cli": "^9.3.2",
     "@react-native-community/cli-platform-android": "^9.3.1",
     "@react-native-community/cli-platform-ios": "^9.3.0",
@@ -37,6 +37,32 @@
     "react-native-tdlib": "file:../",
     "react-test-renderer": "18.1.0",
     "typescript": "^4.8.3"
+  },
+  "overrides": {
+    "@babel/helpers": "^7.26.10",
+    "@babel/runtime": "^7.26.10",
+    "@react-native-community/cli-doctor": "10.2.7",
+    "@react-native-community/cli-hermes": "10.2.7",
+    "@tootallnate/once": "^3.0.1",
+    "braces": "^3.0.3",
+    "flatted": "^3.4.2",
+    "form-data": "^3.0.4",
+    "js-yaml": "^3.14.2",
+    "minimatch": "^3.1.4",
+    "react-devtools-core": "^4.28.4"
+  },
+  "resolutions": {
+    "@babel/helpers": "^7.26.10",
+    "@babel/runtime": "^7.26.10",
+    "@react-native-community/cli-doctor": "10.2.7",
+    "@react-native-community/cli-hermes": "10.2.7",
+    "@tootallnate/once": "^3.0.1",
+    "braces": "^3.0.3",
+    "flatted": "^3.4.2",
+    "form-data": "^3.0.4",
+    "js-yaml": "^3.14.2",
+    "minimatch": "^3.1.4",
+    "react-devtools-core": "^4.28.4"
   },
   "jest": {
     "preset": "react-native",
