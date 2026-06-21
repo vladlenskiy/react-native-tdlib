@@ -5685,16 +5685,16 @@ write-file-atomic@^5.0.1:
     signal-exit "^4.0.1"
 
 ws@^6.2.3:
-  version "6.2.3"
-  resolved "https://registry.npmjs.org/ws/-/ws-6.2.3.tgz"
-  integrity sha512-jmTjYU0j60B+vHey6TfR3Z7RD61z/hmxBS3VMSGIrroOWXQEneK1zNuotOUrGyBHQj0yrpsLHPWtigEFd13ndA==
+  version "6.2.4"
+  resolved "https://registry.yarnpkg.com/ws/-/ws-6.2.4.tgz#d80bd7adbe495d8f4ff55d3a23a274740fcfc903"
+  integrity sha512-PNIUUyLI5YpkJZj60YBzX1o0ByQ4ovvfmq9N/Kig/PAYbVlGyz4R6G0SEWrD0O9acc0sT2+IdMBVLFv8FSi0Nw==
   dependencies:
     async-limiter "~1.0.0"
 
 ws@^7, ws@^7.5.10:
-  version "7.5.10"
-  resolved "https://registry.npmjs.org/ws/-/ws-7.5.10.tgz"
-  integrity sha512-+dbF1tHwZpXcbOJdVOkzLDxZP1ailvSxM6ZweXTegylPny803bFhA+vqBYw4s31NSAk4S2Qz+AKXK9a4wkdjcQ==
+  version "7.5.11"
+  resolved "https://registry.yarnpkg.com/ws/-/ws-7.5.11.tgz#9460daf1812bb81a423c5b9eac746941a86310fa"
+  integrity sha512-zS54Oen9bITtp7kp2XM3AydrCIq1D+HwJOuH+c+e4LfpL/lotP5osijd+UoMnxwAam1GN8R4KtLAyIrIcBNpiA==
 
 wsl-utils@^0.3.0:
   version "0.3.1"
