@@ -57,7 +57,7 @@
     "babel-jest": "^30.3.0",
     "jest": "^30.3.0",
     "release-it": "^20.0.1",
-    "typescript": "^3.8.3"
+    "typescript": "^7.0.2"
   },
   "peerDependencies": {
     "react": "*",
