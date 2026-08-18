@@ -13,7 +13,7 @@ jobs:
   stale:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/stale@v9
+      - uses: actions/stale@v11
         with:
           days-before-stale: 30
           days-before-close: 7
@@ -27,7 +27,7 @@ jobs:
   stale-ai-prs:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/stale@v9
+      - uses: actions/stale@v11
         with:
           only-pr-labels: "maybe automated"
           days-before-pr-stale: 3
