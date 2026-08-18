@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Add or remove "maybe automated" label based on marker
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             // Opt-in disclosure marker: a ticked checkbox in the PR body.

@@ -15,7 +15,7 @@ jobs:
     steps:
       - name: Detect whether PR touches native bridge
         id: touches
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const files = await github.paginate(github.rest.pulls.listFiles, {
@@ -34,7 +34,7 @@ jobs:
 
       - name: Verify device-test checkboxes
         if: steps.touches.outputs.native == 'true'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const body = context.payload.pull_request.body || '';
