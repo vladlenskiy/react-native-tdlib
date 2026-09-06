@@ -49,15 +49,15 @@
     "url": "https://github.com/sponsors/vladlenskiy"
   },
   "devDependencies": {
-    "@babel/core": "^7.29.0",
-    "@babel/preset-env": "^7.29.2",
+    "@babel/core": "^8.0.1",
+    "@babel/preset-env": "^8.0.2",
     "@release-it/conventional-changelog": "^12.0.0",
     "@types/react": "*",
     "@types/react-native": "*",
     "babel-jest": "^30.3.0",
     "jest": "^30.3.0",
     "release-it": "^21.0.2",
-    "typescript": "^3.8.3"
+    "typescript": "^7.0.2"
   },
   "peerDependencies": {
     "react": "*",
