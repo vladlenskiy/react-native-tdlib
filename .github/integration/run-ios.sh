@@ -34,7 +34,7 @@ xcrun simctl install "$UDID" "$APP"
 xcrun simctl launch "$UDID" "$BUNDLE_ID"
 
 line=""
-for _ in $(seq 1 30); do
+for _ in $(seq 1 80); do
   sleep 3
   line=$(xcrun simctl spawn "$UDID" log show --last 5m --info --style compact \
     --predicate 'eventMessage CONTAINS "TDLIB_CHECK_RESULT"' 2>/dev/null |
@@ -43,7 +43,7 @@ for _ in $(seq 1 30); do
 done
 
 if [ -z "$line" ]; then
-  echo "::error::No TDLIB_CHECK_RESULT line in the simulator log after 90s"
+  echo "::error::No TDLIB_CHECK_RESULT line in the simulator log after 240s"
   xcrun simctl spawn "$UDID" log show --last 5m --info --style compact \
     --predicate "process == \"$(basename "$APP" .app)\"" 2>/dev/null | tail -80 || true
   exit 1

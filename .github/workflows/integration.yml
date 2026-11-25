@@ -4,6 +4,12 @@ name: Fresh app check
 # checks, on both platforms, that it autolinks, builds in Release, launches,
 # and that the native TDLib library answers a request. getTextEntities runs
 # through td_json_client_execute and needs no Telegram login.
+#
+# With the TDLIB_TEST_API_ID / TDLIB_TEST_API_HASH secrets set, the app also
+# logs in to Telegram's test DC with a throwaway 99966XYYYY number and calls
+# an authorized method (getSupergroup with an id above 2^31). The api_id must
+# be one the test DC recognizes. Without the secrets (for example on PRs from
+# forks) that part reports auth=SKIP.
 
 on:
   pull_request:
@@ -74,6 +80,15 @@ jobs:
           npm install --no-audit --no-fund "$RUNNER_TEMP"/react-native-tdlib-*.tgz
           cp "$GITHUB_WORKSPACE/.github/integration/App.tsx" App.tsx
 
+      - name: Write test DC credentials
+        working-directory: ${{ env.APP_DIR }}
+        env:
+          TDLIB_API_ID: ${{ secrets.TDLIB_TEST_API_ID }}
+          TDLIB_API_HASH: ${{ secrets.TDLIB_TEST_API_HASH }}
+        run: >-
+          node -e "require('fs').writeFileSync('tdlib-credentials.json',
+          JSON.stringify({api_id: process.env.TDLIB_API_ID || '', api_hash: process.env.TDLIB_API_HASH || ''}))"
+
       - name: Check autolinking
         working-directory: ${{ env.APP_DIR }}
         run: node "$GITHUB_WORKSPACE/.github/integration/assert-config.js"
@@ -122,6 +137,15 @@ jobs:
         run: |
           npm install --no-audit --no-fund "$RUNNER_TEMP"/react-native-tdlib-*.tgz
           cp "$GITHUB_WORKSPACE/.github/integration/App.tsx" App.tsx
+
+      - name: Write test DC credentials
+        working-directory: ${{ env.APP_DIR }}
+        env:
+          TDLIB_API_ID: ${{ secrets.TDLIB_TEST_API_ID }}
+          TDLIB_API_HASH: ${{ secrets.TDLIB_TEST_API_HASH }}
+        run: >-
+          node -e "require('fs').writeFileSync('tdlib-credentials.json',
+          JSON.stringify({api_id: process.env.TDLIB_API_ID || '', api_hash: process.env.TDLIB_API_HASH || ''}))"
 
       - name: Check autolinking
         working-directory: ${{ env.APP_DIR }}
