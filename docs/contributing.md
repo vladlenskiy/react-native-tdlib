@@ -79,8 +79,8 @@ cd example && npx tsc --noEmit
    - If the method deletes, leaves, revokes or removes something, add it to `destructiveMethods` in the same file.
 
 5. **Device test**
-   - Run the method from the Debug tab on iOS and on Android against a live TDLib session.
-   - Paste both logs into the PR under "Device logs" and tick the two device-test boxes. CI fails a PR that adds a native method without them. Native changes that add no method are covered by the `Fresh app check` workflow, which builds and launches a freshly generated app with the packed library on an Android emulator and an iOS simulator.
+   - Run the method from the Debug tab on iOS and on Android against a live TDLib session. This applies to new methods and to changes in existing methods that need a session.
+   - Paste both logs into the PR under "Device logs" and tick the two device-test boxes. The `Device-test claim check` job enforces this for native changes; [AGENTS.md](../AGENTS.md) describes exactly when.
 
 Contributions written with an AI agent are welcome. Tick the disclosure box in the PR template; [AGENTS.md](../AGENTS.md) explains what happens next.
 
