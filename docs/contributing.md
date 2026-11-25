@@ -80,7 +80,7 @@ cd example && npx tsc --noEmit
 
 5. **Device test**
    - Run the method from the Debug tab on iOS and on Android against a live TDLib session.
-   - Paste both logs into the PR under "Device logs" and tick the two device-test boxes. A CI check fails PRs that touch `ios/` or `android/src/` without them.
+   - Paste both logs into the PR under "Device logs" and tick the two device-test boxes. CI fails a PR that adds a native method without them. Native changes that add no method are covered by the `Fresh app check` workflow, which builds and launches a freshly generated app with the packed library on an Android emulator and an iOS simulator.
 
 Contributions written with an AI agent are welcome. Tick the disclosure box in the PR template; [AGENTS.md](../AGENTS.md) explains what happens next.
 
