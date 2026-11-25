@@ -1165,7 +1165,7 @@ public void sendMessage(double chatId, String text, double replyToMessageId, Pro
     @ReactMethod
     public void getSupergroup(double supergroupId, Promise promise) {
         try {
-            TdApi.GetSupergroup request = new TdApi.GetSupergroup((int) supergroupId);
+            TdApi.GetSupergroup request = new TdApi.GetSupergroup((long) supergroupId);
             client.send(request, object -> {
                 // use class-level gson (TdLibJson.GSON)
                 WritableMap result = Arguments.createMap();
@@ -1702,6 +1702,9 @@ public void addComment(
                 ? parameters.getString("application_version")
                 : "1.0";
             tdlibParameters.useFileDatabase = true;
+            tdlibParameters.useTestDc = parameters.hasKey("use_test_dc")
+                && !parameters.isNull("use_test_dc")
+                && parameters.getBoolean("use_test_dc");
 
             client.send(tdlibParameters, new Client.ResultHandler() {
                 @Override
