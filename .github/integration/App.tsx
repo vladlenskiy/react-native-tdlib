@@ -6,10 +6,11 @@
 // 1. getTextEntities runs inside TDLib without a login: proves the native
 //    library loads and answers.
 // 2. When tdlib-credentials.json holds an api_id/api_hash, the app also logs
-//    in to Telegram's test DC with a throwaway 99966XYYYY number and calls
-//    getSupergroup with an id above 2^31. A bridge that truncates the id to
-//    32 bits makes TDLib answer "Invalid supergroup identifier"; a correct
-//    one gets "Supergroup not found".
+//    in to Telegram's test DC with a throwaway 99966XYYYY number, creates a
+//    supergroup and reads it back with getSupergroup. The check fails unless
+//    the returned id equals the requested one, so a bridge that narrows the
+//    id to 32 bits (Java clamps to 2147483647, C may wrap) is caught whenever
+//    the new id is above 2^31. The result line says whether it was.
 import React, {useEffect, useState} from 'react';
 import {NativeEventEmitter, NativeModules, ScrollView, Text, View} from 'react-native';
 import TdLib from 'react-native-tdlib';
@@ -23,7 +24,7 @@ const EXPECTED = [
   'textEntityTypeHashtag',
 ];
 const TEST_DC = 2;
-const LARGE_SUPERGROUP_ID = 3000000000;
+const INT32_MAX = 2147483647;
 
 async function checkTextEntities(): Promise<string> {
   if (TdLib == null || typeof TdLib.getTextEntities !== 'function') {
@@ -40,7 +41,9 @@ async function checkTextEntities(): Promise<string> {
 
 function logInToTestDc(log: (s: string) => void): Promise<void> {
   const emitter = new NativeEventEmitter(NativeModules.TdLibModule);
-  const phone = `${TEST_DC}${Math.floor(1000 + Math.random() * 9000)}`;
+  // Not a secret: test-DC numbers only need to vary between runs to dodge
+  // per-number flood limits.
+  const phone = `${TEST_DC}${1000 + (Date.now() % 9000)}`;
   const handled = new Set<string>();
 
   return new Promise<void>((resolve, reject) => {
@@ -106,23 +109,55 @@ function logInToTestDc(log: (s: string) => void): Promise<void> {
   });
 }
 
-async function checkLargeSupergroupId(log: (s: string) => void): Promise<string> {
+function createSupergroup(log: (s: string) => void): Promise<number> {
+  const emitter = new NativeEventEmitter(NativeModules.TdLibModule);
+  const title = `CI check ${Date.now()}`;
+  return new Promise<number>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      sub.remove();
+      reject(new Error('timed out waiting for the new supergroup'));
+    }, 60000);
+    // The chat title identifies our group among any other updates.
+    const sub = emitter.addListener('tdlib-update', (event: any) => {
+      if (event?.type !== 'updateNewChat') return;
+      try {
+        const chat = JSON.parse(event.raw)?.chat;
+        if (chat?.title !== title || chat?.type?.['@type'] !== 'chatTypeSupergroup') return;
+        clearTimeout(timer);
+        sub.remove();
+        resolve(Number(chat.type.supergroup_id));
+      } catch {}
+    });
+    log(`creating supergroup "${title}"`);
+    TdLib.td_json_client_send({
+      '@type': 'createNewSupergroupChat',
+      title,
+      is_forum: false,
+      is_channel: false,
+      description: '',
+      message_auto_delete_time: 0,
+      for_import: false,
+    }).catch((e: any) => {
+      clearTimeout(timer);
+      sub.remove();
+      reject(new Error(`createNewSupergroupChat: ${e?.message ?? e}`));
+    });
+  });
+}
+
+async function checkSupergroupRoundTrip(log: (s: string) => void): Promise<string> {
   if (!credentials.api_id || !credentials.api_hash) {
     return 'auth=SKIP(no test DC credentials)';
   }
   await logInToTestDc(log);
-  let message: string;
-  try {
-    const res: any = await TdLib.getSupergroup(LARGE_SUPERGROUP_ID);
-    const parsed = JSON.parse(String(res?.raw ?? res));
-    message = parsed['@type'] === 'error' ? parsed.message : parsed['@type'];
-  } catch (e: any) {
-    message = String(e?.message ?? e);
+  const id = await createSupergroup(log);
+  const res: any = await TdLib.getSupergroup(id);
+  const parsed = JSON.parse(String(res?.raw ?? res));
+  if (parsed?.['@type'] !== 'supergroup' || Number(parsed.id) !== id) {
+    throw new Error(`getSupergroup(${id}) -> ${String(res?.raw ?? res).slice(0, 200)}`);
   }
-  if (message !== 'Supergroup not found' && message !== 'supergroup') {
-    throw new Error(`getSupergroup(${LARGE_SUPERGROUP_ID}) -> ${message}`);
-  }
-  return `auth=PASS(getSupergroup ${LARGE_SUPERGROUP_ID} -> ${message})`;
+  const overflow = id > INT32_MAX ? 'id above 2^31' : 'id below 2^31, 64-bit path not exercised';
+  return `auth=PASS(getSupergroup ${id} round-trip, ${overflow})`;
 }
 
 export default function App() {
@@ -136,7 +171,7 @@ export default function App() {
     };
     (async () => {
       const parts = [await checkTextEntities()];
-      parts.push(await checkLargeSupergroupId(log));
+      parts.push(await checkSupergroupRoundTrip(log));
       return `PASS ${parts.join(' ')}`;
     })()
       .catch((e: any) => `FAIL ${e?.code ?? ''} ${e?.message ?? e}`.trim())

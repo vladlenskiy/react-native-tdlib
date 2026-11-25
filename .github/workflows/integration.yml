@@ -6,10 +6,10 @@ name: Fresh app check
 # through td_json_client_execute and needs no Telegram login.
 #
 # With the TDLIB_TEST_API_ID / TDLIB_TEST_API_HASH secrets set, the app also
-# logs in to Telegram's test DC with a throwaway 99966XYYYY number and calls
-# an authorized method (getSupergroup with an id above 2^31). The api_id must
-# be one the test DC recognizes. Without the secrets (for example on PRs from
-# forks) that part reports auth=SKIP.
+# logs in to Telegram's test DC with a throwaway 99966XYYYY number, creates
+# a supergroup and checks that getSupergroup returns the same id. The api_id
+# must be one the test DC recognizes. Without the secrets (for example on PRs
+# from forks) that part reports auth=SKIP.
 
 on:
   pull_request:
