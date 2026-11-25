@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.4.0](https://github.com/vladlenskiy/react-native-tdlib/compare/v2.3.0...v2.4.0) (2026-11-25)
+
+### Features
+
+* add a use_test_dc option to startTdLib ([e7ca970](https://github.com/vladlenskiy/react-native-tdlib/commit/e7ca970a943e777d29ab9b40467e2ec7687c8f12))
+
+### Bug Fixes
+
+* **android:** drop the application element from the library manifest ([9e50b46](https://github.com/vladlenskiy/react-native-tdlib/commit/9e50b46e4a1211d09fb8dbfc5e2dce7128aaf0f6))
+* **android:** let autolinking find the native module ([9dc3690](https://github.com/vladlenskiy/react-native-tdlib/commit/9dc3690787d066fdaecaefaef269d4ec6813b4ab))
+* pass supergroup ids to TDLib as 64-bit integers ([e3994e9](https://github.com/vladlenskiy/react-native-tdlib/commit/e3994e96223ca1e7c366f0c593e08a62ceb16623))
+
 ## [2.3.0](https://github.com/vladlenskiy/react-native-tdlib/compare/v2.2.1...v2.3.0) (2026-05-07)
 
 ### Features
