@@ -1,6 +1,10 @@
+require "json"
+
+package = JSON.parse(File.read(File.join(__dir__, "package.json")))
+
 Pod::Spec.new do |s|
   s.name         = "react-native-tdlib"
-  s.version      = "2.2.0"
+  s.version      = package["version"]
   s.summary      = "React Native wrapper for TDLib"
   s.homepage     = "https://github.com/vladlenskiy/react-native-tdlib"
   s.license      = { :type => "MIT" }
