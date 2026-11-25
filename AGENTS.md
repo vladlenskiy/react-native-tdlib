@@ -41,10 +41,21 @@ you are expected to run it end-to-end in the example app on both
 platforms against a live TDLib session and include the log output in
 the PR body. See the PR template for the exact checklist.
 
-A CI check enforces this: PRs touching native bridge code must have
-both device-test checkboxes ticked in the PR description, or the
-`Device-test claim check` job fails. Ticking the boxes without real
-evidence is dishonest and will be caught on review.
+CI enforces this through the `Device-test claim check` job:
+
+- A PR that adds a native method (a new `RCT_EXPORT_METHOD` or
+  `@ReactMethod` line) must have both device-test checkboxes ticked in
+  the PR description, or the job fails.
+- A PR that changes native code without adding a method passes when the
+  `Fresh app check` workflow succeeds on the same commit. That workflow
+  installs the packed library into a newly generated React Native app,
+  builds it in Release, launches it on an Android emulator and an iOS
+  simulator, and checks that TDLib answers a request that needs no
+  login. It does not exercise authorized calls, so still run changed
+  methods on a device when they need a session.
+
+Ticking the boxes without real evidence is dishonest and will be caught
+on review.
 
 ## Project conventions
 
