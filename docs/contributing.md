@@ -98,7 +98,7 @@ Maintainer only, from an up-to-date `master` with a clean working tree:
 npm run release
 ```
 
-[release-it](https://github.com/release-it/release-it) suggests the next version from the Conventional Commits since the last tag, updates `package.json` and `CHANGELOG.md`, commits, and pushes a `v*` tag. The tag triggers [`release.yml`](../.github/workflows/release.yml), which runs the tests, publishes to npm through Trusted Publishing with provenance, and creates the GitHub Release. The podspec reads its version from `package.json`.
+[release-it](https://github.com/release-it/release-it) suggests the next version from the Conventional Commits since the last tag, updates `package.json` and `CHANGELOG.md`, commits, and pushes a `v*` tag. The tag triggers [`release.yml`](../.github/workflows/release.yml), which runs the tests, publishes to npm through Trusted Publishing with provenance, and creates the GitHub Release.
 
 The prebuilt binaries in `ios/Libraries/tdjson/` and `android/src/main/jniLibs/` are checked into the repo and shipped via the npm tarball — no separate build step needed at publish time.
 
