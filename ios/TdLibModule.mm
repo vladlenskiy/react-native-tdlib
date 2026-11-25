@@ -693,7 +693,7 @@ RCT_EXPORT_METHOD(getChatMember:(double)chatId
 RCT_EXPORT_METHOD(getSupergroup:(double)supergroupId
                   resolve:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject) {
-    [self sendTdLibRequestWithRawResult:@{@"@type": @"getSupergroup", @"supergroup_id": @((int)supergroupId)}
+    [self sendTdLibRequestWithRawResult:@{@"@type": @"getSupergroup", @"supergroup_id": @((long long)supergroupId)}
                                 resolve:resolve reject:reject];
 }
 
