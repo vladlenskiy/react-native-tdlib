@@ -25,6 +25,7 @@ interface TdLibParameters {
   device_model?: string;
   system_version?: string;
   application_version?: string;
+  use_test_dc?: boolean; // Telegram test DCs; numbers 99966XYYYY log in with code XXXXX
 }
 
 interface UserDetails {

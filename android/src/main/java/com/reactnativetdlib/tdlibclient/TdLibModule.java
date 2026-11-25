@@ -1702,6 +1702,9 @@ public void addComment(
                 ? parameters.getString("application_version")
                 : "1.0";
             tdlibParameters.useFileDatabase = true;
+            tdlibParameters.useTestDc = parameters.hasKey("use_test_dc")
+                && !parameters.isNull("use_test_dc")
+                && parameters.getBoolean("use_test_dc");
 
             client.send(tdlibParameters, new Client.ResultHandler() {
                 @Override

@@ -458,7 +458,8 @@ RCT_EXPORT_METHOD(startTdLib:(NSDictionary *)parameters
             @"system_version": parameters[@"system_version"] ?: @"1.0",
             @"application_version": parameters[@"application_version"] ?: @"1.0",
             @"enable_storage_optimizer": @YES,
-            @"use_file_database": @YES
+            @"use_file_database": @YES,
+            @"use_test_dc": @([parameters[@"use_test_dc"] boolValue])
         };
 
         [self sendTdLibRequest:params resolve:^(id result) {

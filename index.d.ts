@@ -13,6 +13,12 @@ declare module "react-native-tdlib" {
     device_model?: string;
     system_version?: string;
     application_version?: string;
+    /**
+     * Connect to Telegram's test data centers instead of production.
+     * Test DCs accept phone numbers 99966XYYYY (X = DC id 1-3) with the
+     * login code XXXXX. Defaults to false.
+     */
+    use_test_dc?: boolean;
   }
 
   // ==================== Result Types ====================
