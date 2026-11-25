@@ -1,5 +1,12 @@
 name: "Device-test claim check"
 
+# PRs that touch the native bridge (ios/ or android/src/) need runtime
+# evidence. A PR that adds a native method must tick both device-test boxes
+# in its description, because only a live TDLib session exercises a new
+# method. A PR that changes native code without adding a method can rely on
+# the "Fresh app check" workflow instead: this job waits for that run on the
+# same commit and passes only if it succeeded.
+
 on:
   pull_request_target:
     types: [opened, edited, reopened, synchronize]
@@ -7,14 +14,16 @@ on:
 permissions:
   pull-requests: read
   contents: read
+  actions: read
 
 jobs:
   check:
     if: github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
-      - name: Detect whether PR touches native bridge
-        id: touches
+      - name: Inspect native changes
+        id: native
         uses: actions/github-script@v7
         with:
           script: |
@@ -24,16 +33,23 @@ jobs:
               pull_number: context.payload.pull_request.number,
               per_page: 100,
             });
-            const native = files.some(f =>
+            const native = files.filter(f =>
               f.filename.startsWith('ios/') ||
               f.filename.startsWith('android/src/')
             );
+            // A method counts as new when the diff adds an export line.
+            // GitHub omits the patch for very large diffs; treat those as
+            // possibly adding methods.
+            const exportLine = /^\+\s*(RCT_EXPORT_METHOD\(|RCT_REMAP_METHOD\(|@ReactMethod\b)/m;
+            const addsMethod = native.some(f => f.patch === undefined || exportLine.test(f.patch));
             core.info(`Files changed: ${files.length}`);
-            core.info(`Touches native bridge: ${native}`);
-            core.setOutput('native', native);
+            core.info(`Native files changed: ${native.map(f => f.filename).join(', ') || 'none'}`);
+            core.info(`Adds a native method: ${addsMethod}`);
+            core.setOutput('native', native.length > 0);
+            core.setOutput('adds_method', addsMethod);
 
       - name: Verify device-test checkboxes
-        if: steps.touches.outputs.native == 'true'
+        if: steps.native.outputs.native == 'true' && steps.native.outputs.adds_method == 'true'
         uses: actions/github-script@v7
         with:
           script: |
@@ -49,7 +65,7 @@ jobs:
             const iosStatus = iosChecked ? 'checked' : 'UNCHECKED';
             const androidStatus = androidChecked ? 'checked' : 'UNCHECKED';
             core.setFailed([
-              'This PR changes native bridge code (ios/ or android/src/).',
+              'This PR adds a native method (RCT_EXPORT_METHOD or @ReactMethod).',
               '',
               'Both device-test checkboxes must be checked in the PR description:',
               `  • iOS:     ${iosStatus}`,
@@ -60,3 +76,37 @@ jobs:
               'output below them. See AGENTS.md — the Jest suite cannot verify',
               'the native bridge, only the JS delegation layer.',
             ].join('\n'));
+
+      - name: Wait for the Fresh app check
+        if: steps.native.outputs.native == 'true' && steps.native.outputs.adds_method != 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const {owner, repo} = context.repo;
+            const sha = context.payload.pull_request.head.sha;
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
+            const deadline = Date.now() + 55 * 60 * 1000;
+            core.info(`No new native methods. Waiting for "Fresh app check" on ${sha}.`);
+
+            let run;
+            while (Date.now() < deadline) {
+              const {data} = await github.rest.actions.listWorkflowRunsForRepo({
+                owner, repo, head_sha: sha, per_page: 50,
+              });
+              run = data.workflow_runs
+                .filter(r => r.path === '.github/workflows/integration.yml')
+                .sort((a, b) => b.id - a.id || b.run_attempt - a.run_attempt)[0];
+              if (run && run.status === 'completed') break;
+              core.info(run ? `Run ${run.id} is ${run.status}...` : 'Run not started yet...');
+              await sleep(30 * 1000);
+            }
+
+            if (!run) {
+              core.setFailed('No "Fresh app check" run was found for this commit.');
+            } else if (run.status !== 'completed') {
+              core.setFailed(`"Fresh app check" did not finish in time: ${run.html_url}`);
+            } else if (run.conclusion !== 'success') {
+              core.setFailed(`"Fresh app check" concluded ${run.conclusion}: ${run.html_url}`);
+            } else {
+              core.info(`"Fresh app check" passed: ${run.html_url}`);
+            }

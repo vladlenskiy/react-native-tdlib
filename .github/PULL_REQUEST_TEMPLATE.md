@@ -6,7 +6,7 @@
 
 - [ ] `npm test -- --runInBand` passes
 
-**For PRs that add or modify native methods (`ios/` or `android/`):**
+**For PRs that add or modify native methods (`ios/` or `android/`).** Required by CI when the PR adds a method; other native changes are covered by the `Fresh app check` workflow (see AGENTS.md).
 
 - [ ] Ran the method in `example/` on iOS against a live TDLib session — log attached below
 - [ ] Ran the method in `example/` on Android against a live TDLib session — log attached below
